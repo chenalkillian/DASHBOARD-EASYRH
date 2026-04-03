@@ -32,7 +32,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user) {
       const token = getTokenFromCookie();
-      if (!token) return;
+      if (!token) alert('No token');
 
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(true);
