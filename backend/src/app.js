@@ -17,7 +17,7 @@ const congesRoutes = require('./routes/congesRoutes');
 const exportsRoutes = require('./routes/exportsRoutes');
 
 // Configuration CORS : en dev j'ouvre sur tout, en prod je pourrai restreindre sur le domaine du front.
-const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').filter(Boolean);
+const allowedOrigins = ['http://localhost:5173', 'https://dashboard-easyrh-front.vercel.app'];
 
 app.use(
   cors({
