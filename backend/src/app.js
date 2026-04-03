@@ -16,8 +16,6 @@ const recrutementRoutes = require('./routes/recrutementRoutes');
 const onboardingRoutes = require('./routes/onboardingRoutes');
 const congesRoutes = require('./routes/congesRoutes');
 const exportsRoutes = require('./routes/exportsRoutes');
-
-// Configuration CORS : autorise le front déployé
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || 'https://dashboard-easyrh-front.vercel.app',
   credentials: true,
@@ -26,9 +24,8 @@ const corsOptions = {
 // CORS pour toutes les routes
 app.use(cors(corsOptions));
 
-// CORS pour toutes les requêtes préflight (OPTIONS)
-app.options('*', cors(corsOptions));
-
+// CORS pour les préflights sur les routes API uniquement
+app.options('/api/*', cors(corsOptions));
 // Sécurisation des en-têtes HTTP de base (OWASP)
 app.use(helmet());
 
