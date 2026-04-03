@@ -5,6 +5,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+
 const app = express();
 
 // import des routes métiers
@@ -16,13 +17,17 @@ const onboardingRoutes = require('./routes/onboardingRoutes');
 const congesRoutes = require('./routes/congesRoutes');
 const exportsRoutes = require('./routes/exportsRoutes');
 
-// Configuration CORS : en dev j'ouvre sur tout, en prod je pourrai restreindre sur le domaine du front.
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN || '*',
-    credentials: true,
-  }),
-);
+// Configuration CORS : autorise le front déployé
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || 'https://dashboard-easyrh-front.vercel.app',
+  credentials: true,
+};
+
+// CORS pour toutes les routes
+app.use(cors(corsOptions));
+
+// CORS pour toutes les requêtes préflight (OPTIONS)
+app.options('*', cors(corsOptions));
 
 // Sécurisation des en-têtes HTTP de base (OWASP)
 app.use(helmet());
@@ -37,7 +42,6 @@ const authLimiter = rateLimit({
 
 // Parsing JSON avec limite de taille pour éviter les payloads trop gros
 app.use(express.json({ limit: '1mb' }));
-
 
 // initialisation des routes définies
 // Health check pour vérifier que le serveur fonctionne (utilisé aussi par la CI)
