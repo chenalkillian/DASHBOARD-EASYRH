@@ -23,7 +23,6 @@ app.use(
     credentials: true,
   }),
 );
-app.options('*', cors());
 
 // Sécurisation des en-têtes HTTP de base (OWASP)
 app.use(helmet());
