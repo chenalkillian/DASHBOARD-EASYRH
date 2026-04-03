@@ -38,7 +38,7 @@ const Dashboard = () => {
       setLoading(true);
       setError('');
 
-      fetch('/api/dashboard/stats', { headers: { Authorization: `Bearer ${token}` } })
+      fetch(`${BACKEND_URL}/api/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` } })
         .then(async (res) => {
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
