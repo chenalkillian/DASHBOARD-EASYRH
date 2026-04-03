@@ -3,7 +3,7 @@ import { getTokenFromCookie, useAuth } from '../hooks/useAuth';
 
 const TYPES = ['Congés payés', 'RTT', 'Maladie', 'Sans solde'];
 const STATUTS = ['', 'En attente', 'Approuvé', 'Refusé'];
-
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const toDateInputValue = (value) => {
   if (!value) return '';
   if (typeof value === 'string') return value.slice(0, 10);
@@ -78,7 +78,7 @@ const Conges = () => {
     setError('');
     try {
       const qs = filterStatut ? `?statut=${encodeURIComponent(filterStatut)}` : '';
-      const res = await fetch(`/api/conges${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}/api/conges${qs}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data?.error || 'Erreur chargement congés';
@@ -115,7 +115,7 @@ const Conges = () => {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch('/api/conges', {
+      const res = await fetch(`${BACKEND_URL}/api/conges`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -169,7 +169,7 @@ const Conges = () => {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`/api/conges/${id}`, {
+      const res = await fetch(`${BACKEND_URL}/api/conges/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -204,7 +204,7 @@ const Conges = () => {
               <button
                 type="button"
                 disabled={exporting || saving}
-                onClick={() => downloadFile('/api/exports/conges.xlsx', 'conges.xlsx')}
+                onClick={() => downloadFile(`${BACKEND_URL}/api/exports/conges.xlsx`, 'conges.xlsx')}
                 className="bg-slate-900 text-white px-3 py-2 rounded-xl text-sm disabled:opacity-50"
               >
                 {exporting ? 'Export...' : 'Excel'}
@@ -212,7 +212,7 @@ const Conges = () => {
               <button
                 type="button"
                 disabled={exporting || saving}
-                onClick={() => downloadFile('/api/exports/conges.pdf', 'conges.pdf')}
+                onClick={() => downloadFile(`${BACKEND_URL}/api/exports/conges.pdf`, 'conges.pdf')}
                 className="bg-slate-900 text-white px-3 py-2 rounded-xl text-sm disabled:opacity-50"
               >
                 {exporting ? 'Export...' : 'PDF'}

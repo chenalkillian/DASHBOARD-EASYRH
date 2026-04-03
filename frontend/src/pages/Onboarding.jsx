@@ -7,7 +7,7 @@ const DEFAULT_TEMPLATE = [
   { titre: 'Préparer le poste de travail', categorie: 'Logistique' },
   { titre: 'Planifier le point de bienvenue', categorie: 'Manager' },
 ];
-
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const Onboarding = () => {
   const { user } = useAuth();
   const role = user?.role || 'Collaborateur';
@@ -35,7 +35,7 @@ const Onboarding = () => {
     setLoadingCollab(true);
     setError('');
     try {
-      const res = await fetch('/api/collaborateurs', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}/api/collaborateurs`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data?.error?.message || data?.error || 'Erreur chargement collaborateurs';

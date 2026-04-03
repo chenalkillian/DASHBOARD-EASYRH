@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getTokenFromCookie, useAuth } from '../hooks/useAuth';
 
 const STATUTS = ['Nouveau', 'En cours', 'Entretien', 'Offre', 'Rejeté', 'Embauché'];
-
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const emptyForm = {
   nom: '',
   prenom: '',
@@ -55,7 +55,7 @@ const Recrutement = () => {
 
     try {
       const qs = filterStatut ? `?statut=${encodeURIComponent(filterStatut)}` : '';
-      const res = await fetch(`/api/recrutement${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}/api/recrutement${qs}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data?.error || (res.status === 403 ? 'Accès réservé RH/Manager' : 'Erreur chargement candidats');

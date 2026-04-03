@@ -33,7 +33,7 @@ const Collaborateurs = () => {
     setError('');
 
     try {
-      const res = await fetch('/api/collaborateurs', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}/api/collaborateurs`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data?.error?.message || data?.error || (res.status === 403 ? 'Accès réservé RH' : 'Erreur chargement collaborateurs');
