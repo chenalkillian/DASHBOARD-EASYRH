@@ -22,6 +22,7 @@ const formatDaysAsDuration = (days) => {
   if (years > 0) return months > 0 ? `${years}a ${months}m` : `${years}a`;
   return `${months || 1}m`;
 };
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 const Dashboard = () => {
   const { user } = useAuth();
