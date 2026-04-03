@@ -17,9 +17,17 @@ const congesRoutes = require('./routes/congesRoutes');
 const exportsRoutes = require('./routes/exportsRoutes');
 
 // Configuration CORS : en dev j'ouvre sur tout, en prod je pourrai restreindre sur le domaine du front.
+const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   }),
 );
