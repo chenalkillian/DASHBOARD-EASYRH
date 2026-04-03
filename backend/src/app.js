@@ -24,8 +24,10 @@ const corsOptions = {
 // CORS pour toutes les routes
 app.use(cors(corsOptions));
 
-// CORS pour les préflights sur les routes API uniquement
-app.options('/api/*', cors(corsOptions));
+// CORS pour le préflight sur /api/auth/login
+app.options('/api/auth/login', cors(corsOptions));
+
+
 // Sécurisation des en-têtes HTTP de base (OWASP)
 app.use(helmet());
 
