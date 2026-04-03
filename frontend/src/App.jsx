@@ -1,35 +1,56 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth';
+import Layout from './components/Layout';
+import Dashboard from './pages/Dashboard';
+import Collaborateurs from './pages/Collaborateurs';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Parametres from './pages/Parametres';
+import Recrutement from './pages/Recrutement';
+import Onboarding from './pages/Onboarding';
+import Conges from './pages/Conges';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const { user, loading } = useAuth();
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Chargement...</div>;
+
+return (
+  <Router>
+    <Routes>
+      <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+      <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
+      <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/" />} />
+      <Route path="/reset-password" element={!user ? <ResetPassword /> : <Navigate to="/" />} />
+      <Route
+        path="/"
+        element={user ? <Layout><Dashboard /></Layout> : <Navigate to="/login" />}
+      />
+      <Route
+        path="/collaborateurs"
+        element={user ? <Layout><Collaborateurs /></Layout> : <Navigate to="/login" />}
+      />
+      <Route
+        path="/recrutement"
+        element={user ? <Layout><Recrutement /></Layout> : <Navigate to="/login" />}
+      />
+      <Route
+        path="/onboarding"
+        element={user ? <Layout><Onboarding /></Layout> : <Navigate to="/login" />}
+      />
+      <Route
+        path="/conges"
+        element={user ? <Layout><Conges /></Layout> : <Navigate to="/login" />}
+      />
+      <Route
+        path="/parametres"
+        element={user ? <Layout><Parametres /></Layout> : <Navigate to="/login" />}
+      />
+    </Routes>
+  </Router>
+);
 }
 
-export default App
+export default App;
