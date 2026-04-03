@@ -76,7 +76,7 @@ const Recrutement = () => {
     setExporting(true);
     setError('');
     try {
-      const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         const msg = data?.error || 'Erreur export';
@@ -126,7 +126,7 @@ const Recrutement = () => {
         notes: form.notes || null,
       };
 
-      const url = editingId ? `/api/recrutement/${editingId}` : '/api/recrutement';
+      const url = editingId ? `${BACKEND_URL}/api/recrutement/${editingId}` : `${BACKEND_URL}/api/recrutement`;
       const method = editingId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -173,7 +173,7 @@ const Recrutement = () => {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`/api/recrutement/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}/api/recrutement/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
         const msg = data?.error || 'Erreur suppression';

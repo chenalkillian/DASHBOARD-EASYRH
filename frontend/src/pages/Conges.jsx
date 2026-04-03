@@ -144,7 +144,7 @@ const Conges = () => {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`/api/conges/${id}/decision`, {
+      const res = await fetch(`${BACKEND_URL}/api/conges/${id}/decision`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ decision }),

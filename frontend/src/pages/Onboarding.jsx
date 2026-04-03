@@ -57,7 +57,7 @@ const Onboarding = () => {
     setLoadingTasks(true);
     setError('');
     try {
-      const res = await fetch(`/api/onboarding/${collabId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}/api/onboarding/${collabId}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data?.error || 'Erreur chargement checklist';
@@ -94,7 +94,7 @@ const Onboarding = () => {
 
       for (let i = 0; i < DEFAULT_TEMPLATE.length; i += 1) {
         const t = DEFAULT_TEMPLATE[i];
-        await fetch(`/api/onboarding/${selectedId}`, {
+        await fetch(`${BACKEND_URL}/api/onboarding/${selectedId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
@@ -119,7 +119,7 @@ const Onboarding = () => {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`/api/onboarding/${selectedId}`, {
+      const res = await fetch(`${BACKEND_URL}/api/onboarding/${selectedId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -148,7 +148,7 @@ const Onboarding = () => {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`/api/onboarding/task/${task.id}`, {
+      const res = await fetch(`${BACKEND_URL}/api/onboarding/task/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ termine: !task.termine }),
@@ -172,7 +172,7 @@ const Onboarding = () => {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`/api/onboarding/task/${id}`, {
+      const res = await fetch(`${BACKEND_URL}/api/onboarding/task/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

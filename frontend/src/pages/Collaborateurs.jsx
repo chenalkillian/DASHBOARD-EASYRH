@@ -19,7 +19,7 @@ const Collaborateurs = () => {
     salaire: '',
     status: 'Actif',
   });
-
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
   useEffect(() => {
     if (!user) return;
     fetchCollaborateurs();
@@ -75,7 +75,7 @@ const Collaborateurs = () => {
     };
 
     try {
-      const url = editingId ? `/api/collaborateurs/${editingId}` : '/api/collaborateurs';
+      const url = editingId ? `${BACKEND_URL}/api/collaborateurs/${editingId}` : `${BACKEND_URL}/api/collaborateurs`;
       const method = editingId ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
@@ -125,7 +125,7 @@ const Collaborateurs = () => {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`/api/collaborateurs/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}/api/collaborateurs/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
         const msg = data?.error?.message || data?.error || 'Erreur suppression';
@@ -146,7 +146,7 @@ const Collaborateurs = () => {
     setExporting(true);
     setError('');
     try {
-      const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BACKEND_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         const msg = data?.error || 'Erreur export';
