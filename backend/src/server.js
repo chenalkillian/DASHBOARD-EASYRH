@@ -1,7 +1,12 @@
 const app = require('./app');
 
-const PORT = process.env.PORT || 3000;
+// 1) Export pour Vercel (mode serverless)
+module.exports = app;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-});
+// 2) Lancement en local uniquement
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+  });
+}
