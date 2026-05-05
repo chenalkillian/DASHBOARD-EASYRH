@@ -100,7 +100,10 @@ const Recrutement = () => {
 
   useEffect(() => {
     if (!user || !canAccess) return;
-    fetchCandidats();
+    const timer = setTimeout(() => {
+      fetchCandidats();
+    }, 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, canAccess, filterStatut]);
 

@@ -7,7 +7,7 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !!getTokenFromCookie());
 
   const fetchMe = async (token) => {
     const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
@@ -23,10 +23,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const token = getTokenFromCookie();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    if (!token) return;
 
     fetchMe(token)
       .then((u) => setUser(u))

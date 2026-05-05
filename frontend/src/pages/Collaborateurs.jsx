@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getTokenFromCookie, useAuth } from '../hooks/useAuth';
 
 const Collaborateurs = () => {
@@ -19,13 +19,8 @@ const Collaborateurs = () => {
     salaire: '',
     status: 'Actif',
   });
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-  useEffect(() => {
-    if (!user) return;
-    fetchCollaborateurs();
-  }, [user]);
-
-  const fetchCollaborateurs = async () => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+  const fetchCollaborateurs = useCallback(async () => {
     const token = getTokenFromCookie();
     if (!token) return;
 
@@ -45,7 +40,15 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
     } finally {
       setLoading(false);
     }
-  };
+  }, [BACKEND_URL]);
+
+  useEffect(() => {
+    if (!user) return;
+    const timer = setTimeout(() => {
+      fetchCollaborateurs();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [user, fetchCollaborateurs]);
 
   const resetForm = () => {
     setForm({

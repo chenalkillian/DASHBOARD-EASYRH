@@ -94,7 +94,10 @@ const Conges = () => {
 
   useEffect(() => {
     if (!user) return;
-    fetchConges();
+    const timer = setTimeout(() => {
+      fetchConges();
+    }, 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, filterStatut]);
 

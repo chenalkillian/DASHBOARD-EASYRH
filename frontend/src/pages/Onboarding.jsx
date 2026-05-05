@@ -73,14 +73,21 @@ const Onboarding = () => {
 
   useEffect(() => {
     if (!user || !canAccess) return;
-    fetchCollaborateurs();
+    const timer = setTimeout(() => {
+      fetchCollaborateurs();
+    }, 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, canAccess]);
 
   useEffect(() => {
     if (selectedId) {
-      fetchTasks(selectedId);
+      const timer = setTimeout(() => {
+        fetchTasks(selectedId);
+      }, 0);
+      return () => clearTimeout(timer);
     }
+    return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
