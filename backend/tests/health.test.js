@@ -1,4 +1,17 @@
 const request = require('supertest');
+
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(() => ({
+    from: jest.fn(() => ({
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          single: jest.fn(async () => ({ data: null, error: null })),
+        })),
+      })),
+    })),
+  })),
+}));
+
 const app = require('../src/app');
 
 describe('API healthcheck', () => {
