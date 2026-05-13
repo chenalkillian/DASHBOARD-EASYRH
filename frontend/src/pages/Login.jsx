@@ -3,27 +3,45 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, Mail, Lock } from 'lucide-react';
 
+/**
+ * @param {string} message
+ * @returns {string}
+ */
+function formatAuthError(message) {
+  const mapping = {
+    'Invalid login credentials':
+      'Email ou mot de passe incorrect. Veuillez réessayer.',
+    'JWT expired': 'Votre session a expiré. Veuillez vous reconnecter.',
+    'Email not confirmed':
+      'Veuillez confirmer votre adresse email avant de vous connecter.',
+  };
+  return (
+    mapping[message] ??
+    'Une erreur inattendue est survenue. Veuillez réessayer.'
+  );
+}
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setErrorMessage('');
 
     const result = await login(email, password);
-    
+
     if (result.success) {
       navigate('/');
     } else {
-      setError(result.error);
+      setErrorMessage(formatAuthError(result.error ?? ''));
     }
-    
+
     setLoading(false);
   };
 
@@ -36,13 +54,13 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6" aria-busy={loading}>
-          {error && (
+          {errorMessage && (
             <div
               role="alert"
               aria-live="polite"
               className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg"
             >
-              {error}
+              {errorMessage}
             </div>
           )}
 
