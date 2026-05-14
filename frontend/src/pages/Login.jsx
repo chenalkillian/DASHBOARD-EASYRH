@@ -2,24 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, Mail, Lock } from 'lucide-react';
-
-/**
- * @param {string} message
- * @returns {string}
- */
-function formatAuthError(message) {
-  const mapping = {
-    'Invalid login credentials':
-      'Email ou mot de passe incorrect. Veuillez réessayer.',
-    'JWT expired': 'Votre session a expiré. Veuillez vous reconnecter.',
-    'Email not confirmed':
-      'Veuillez confirmer votre adresse email avant de vous connecter.',
-  };
-  return (
-    mapping[message] ??
-    'Une erreur inattendue est survenue. Veuillez réessayer.'
-  );
-}
+import { formatAuthError } from '../utils/formatAuthError';
 
 const Login = () => {
   const [email, setEmail] = useState('');

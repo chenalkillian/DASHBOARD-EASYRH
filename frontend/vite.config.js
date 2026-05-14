@@ -9,6 +9,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    test: {
+      environment: 'node',
+      include: ['src/**/*.{test,spec}.js'],
+    },
     server: {
       proxy: {
         '/api': {

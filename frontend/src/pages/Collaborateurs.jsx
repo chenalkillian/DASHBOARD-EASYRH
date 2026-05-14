@@ -242,18 +242,19 @@ const Collaborateurs = () => {
           )}
         </div>
       </form>
-      <table className="w-full bg-white border">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto -mx-1 sm:mx-0">
+        <table className="w-full min-w-[640px] text-sm sm:text-base">
         <thead>
           <tr>
-            <th className="text-left p-2 border-b">Nom</th>
-            <th className="text-left p-2 border-b">Prénom</th>
-            <th className="text-left p-2 border-b">Poste</th>
-            <th className="text-left p-2 border-b">Service</th>
-            <th className="text-left p-2 border-b">Contrat</th>
-            <th className="text-left p-2 border-b">Date</th>
-            <th className="text-left p-2 border-b">Statut</th>
-            <th className="text-left p-2 border-b">Salaire</th>
-            <th className="text-left p-2 border-b">Actions</th>
+            <th scope="col" className="text-left p-2 border-b">Nom</th>
+            <th scope="col" className="text-left p-2 border-b">Prénom</th>
+            <th scope="col" className="text-left p-2 border-b">Poste</th>
+            <th scope="col" className="text-left p-2 border-b">Service</th>
+            <th scope="col" className="text-left p-2 border-b">Contrat</th>
+            <th scope="col" className="text-left p-2 border-b">Date</th>
+            <th scope="col" className="text-left p-2 border-b">Statut</th>
+            <th scope="col" className="text-left p-2 border-b">Salaire</th>
+            <th scope="col" className="text-left p-2 border-b">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -279,6 +280,7 @@ const Collaborateurs = () => {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 };

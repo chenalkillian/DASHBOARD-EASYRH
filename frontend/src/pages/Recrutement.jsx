@@ -271,15 +271,15 @@ const Recrutement = () => {
       </form>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full min-w-[560px]">
           <thead>
             <tr className="text-left text-sm text-slate-600">
-              <th className="p-3 border-b">Nom</th>
-              <th className="p-3 border-b">Prénom</th>
-              <th className="p-3 border-b">Poste</th>
-              <th className="p-3 border-b">Statut</th>
-              <th className="p-3 border-b">Date</th>
-              <th className="p-3 border-b">Actions</th>
+              <th scope="col" className="p-3 border-b">Nom</th>
+              <th scope="col" className="p-3 border-b">Prénom</th>
+              <th scope="col" className="p-3 border-b">Poste</th>
+              <th scope="col" className="p-3 border-b">Statut</th>
+              <th scope="col" className="p-3 border-b">Date</th>
+              <th scope="col" className="p-3 border-b">Actions</th>
             </tr>
           </thead>
           <tbody>

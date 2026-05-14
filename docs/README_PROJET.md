@@ -1,6 +1,31 @@
 # EasyDashboard RH — Documentation (état actuel)
 
-Ce document résume **ce qui a été implémenté**, **ce que le site fait**, et **l’écart** avec la documentation du projet (plan d’action BLOC 2).
+Ce document résume **ce qui est implémenté**, **ce que le site fait**, et renvoie vers la **doc technique** du dépôt (livrables type bilan RNCP / module).
+
+## Documentation technique (fichiers du repo)
+
+| Livrable | Fichier |
+|----------|---------|
+| Protocole CI / environnements | [`docs/protocole_deploiement_ci_cd.md`](./protocole_deploiement_ci_cd.md) |
+| Cahier de recettes (C2.3.1) | [`docs/cahier_recettes.md`](./cahier_recettes.md) |
+| Plan de correction des bogues (C2.3.2) | [`docs/plan_correction_bugs.md`](./plan_correction_bugs.md) |
+| Sécurité & accessibilité (C2.2.3) | [`docs/securite_et_accessibilite.md`](./securite_et_accessibilite.md) |
+| Manuel de déploiement (C2.4.1) | [`docs/manuels/manuel_deploiement.md`](./manuels/manuel_deploiement.md) |
+| Manuel d’utilisation | [`docs/manuels/manuel_utilisation.md`](./manuels/manuel_utilisation.md) |
+| Manuel de mise à jour | [`docs/manuels/manuel_mise_a_jour.md`](./manuels/manuel_mise_a_jour.md) |
+| Historique des versions (C2.2.4 / C4.3.2) | [`../CHANGELOG.md`](../CHANGELOG.md) (racine du dépôt) |
+
+### Les trois manuels (déploiement, utilisation, mise à jour)
+
+Les trois types de manuel demandés dans le sujet correspondent aux fichiers suivants (`docs/manuels/`) :
+
+| Type | Fichier |
+|------|---------|
+| Manuel de **déploiement** | [`manuel_deploiement.md`](./manuels/manuel_deploiement.md) |
+| Manuel d’**utilisation** | [`manuel_utilisation.md`](./manuels/manuel_utilisation.md) |
+| Manuel de **mise à jour** | [`manuel_mise_a_jour.md`](./manuels/manuel_mise_a_jour.md) |
+
+Les noms de fichiers suffisent : pas besoin de renommer pour retrouver déploiement / utilisation / MAJ.
 
 ## Vue d’ensemble
 
@@ -187,16 +212,21 @@ Exports implementés via le backend (fichiers téléchargeables) + boutons dans 
 - **F6 Gestion Congés** : ✅ fait (demande + validation + exports)
 - **F7 Exports PDF/Excel** : ✅ fait (collaborateurs + congés + recrutement)
 
-### Livrables / exigences BLOC 2 (à ce stade)
+### Livrables / exigences BLOC 2 (état aligné sur le dépôt)
 
-Dans le PDF, il y a aussi des éléments “process”/qualité (pas juste des features).
-À l’instant, côté code/produit :
-- **Prototype fonctionnel** (F1+F2 et plus) : ✅
-- **CI/CD GitHub Actions** : ❌ pas encore mis en place
-- **Tests unitaires + couverture** : ❌ pas encore (Jest/RTL non configurés sur des tests réels)
-- **Sécurité OWASP + accessibilité RGAA** : ⚠️ partiel (auth/rôles OK, mais pas d’audit hardening ni d’accessibilité formelle)
-- **Déploiement staging/production** : ❌ pas documenté/automatisé ici
-- **Cahier de recettes / plan correction bugs / manuels** : ❌ pas encore
+Éléments demandés dans le cadre du module « Concevoir et développer » et **présents dans ce repo** :
+
+- **Prototype fonctionnel** (parcours F1 → F7) : ✅
+- **CI / intégration continue** (GitHub Actions : tests backend, audit npm critique, lint + build frontend) : ✅ voir [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) et [`docs/protocole_deploiement_ci_cd.md`](./protocole_deploiement_ci_cd.md)
+- **Tests automatisés** : ✅ backend **Jest** — **10** fichiers, **26** scénarios (auth, collaborateurs CRUD + droits, dashboard, congés, recrutement, onboarding, exports, health). Dernière mesure **indicative** (Jest `--coverage`) : ~**60 %** des lignes, ~**28 %** des branches — à faire monter si on veut coller au mot « majorité » du référentiel. ✅ frontend **Vitest** sur `formatAuthError`.
+
+**Comment j’écris les tests** : je pars des cas réels (API, rôles, erreurs métier, ce qui est dans le cahier de recettes), pas de tests qui ne servent qu’à vérifier qu’un mock a été appelé. Les mocks Supabase isolent Express mais le scénario doit rester compréhensible pour quelqu’un qui lit le fichier.
+
+- **Sécurité OWASP + démarche accessibilité (RGAA / OPQUAST)** : ✅ documentées et partiellement appliquées — voir [`docs/securite_et_accessibilite.md`](./securite_et_accessibilite.md) (**référentiel unique** : RGAA + OPQUAST, cf. ce fichier ; ne pas introduire un autre référentiel sans mettre à jour la doc).
+- **Responsive / navigation petit écran** : ✅ menu mobile (burger) sous le breakpoint `md` dans la barre de navigation.
+- **Déploiement staging / production** : ⚠️ décrit dans les manuels (variables, build) ; l’automatisation dépend de l’hébergeur (ex. Vercel + hébergement API).
+- **Cahier de recettes / plan correction bugs / manuels** : ✅ dans `docs/` (tableau ci-dessus).
+- **Journal de versions** : ✅ [`CHANGELOG.md`](../CHANGELOG.md) à la racine. C’est une **synthèse** des versions (fonctionnalités, correctifs), pas un copier-coller de `git log` : Git reste la source brute, le fichier sert à lire vite ce qui a changé.
 
 ## Points connus / améliorations recommandées
 

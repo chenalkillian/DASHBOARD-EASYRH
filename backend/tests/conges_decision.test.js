@@ -1,7 +1,4 @@
-/**
- * Tests API congés (C2.2.2)
- * Objectif : valider la protection RH/Manager sur la décision, et la réponse du contrôleur.
- */
+/** Tests décision congés : accès RH/Manager + réponse API. */
 const request = require('supertest');
 
 jest.mock('../src/middleware/authMiddleware', () => ({

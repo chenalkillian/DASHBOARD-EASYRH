@@ -272,15 +272,15 @@ const Conges = () => {
       </form>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full min-w-[520px]">
           <thead>
             <tr className="text-left text-sm text-slate-600">
-              <th className="p-3 border-b">Type</th>
-              <th className="p-3 border-b">Début</th>
-              <th className="p-3 border-b">Fin</th>
-              <th className="p-3 border-b">Statut</th>
-              <th className="p-3 border-b">Traité le</th>
-              <th className="p-3 border-b">Actions</th>
+              <th scope="col" className="p-3 border-b">Type</th>
+              <th scope="col" className="p-3 border-b">Début</th>
+              <th scope="col" className="p-3 border-b">Fin</th>
+              <th scope="col" className="p-3 border-b">Statut</th>
+              <th scope="col" className="p-3 border-b">Traité le</th>
+              <th scope="col" className="p-3 border-b">Actions</th>
             </tr>
           </thead>
           <tbody>
