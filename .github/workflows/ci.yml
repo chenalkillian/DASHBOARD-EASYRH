@@ -56,5 +56,8 @@ jobs:
       - name: Lint frontend (ESLint)
         run: npm run lint
 
+      - name: Frontend unit tests (Vitest)
+        run: npm test
+
       - name: Build frontend (Vite)
         run: npm run build

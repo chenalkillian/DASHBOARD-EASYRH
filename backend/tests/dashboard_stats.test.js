@@ -1,7 +1,4 @@
-/**
- * Tests API dashboard (C2.2.2)
- * Objectif : valider l'accès RH/Manager et la forme de la réponse /stats.
- */
+/** Tests stats dashboard : droits RH/Manager + forme du JSON renvoyé. */
 const request = require('supertest');
 
 jest.mock('../src/middleware/authMiddleware', () => ({

@@ -127,7 +127,7 @@ La CI contient **deux jobs** parallèles : `backend` et `frontend`.
 
 ---
 
-## 4. Critères de qualité & performance (lien avec la grille BLOC 2)
+## 4. Critères de qualité & performance (sujet / module)
 
 - **Qualité code** :
   - usage de framework modernes (React, Express, Supabase)

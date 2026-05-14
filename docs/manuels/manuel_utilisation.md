@@ -71,7 +71,7 @@ Le collaborateur apparaît alors dans le tableau.
 
 - Boutons **“Exporter Excel”** / **“Exporter PDF”** en haut à droite :
   - Excel : export de la liste complète au format `.xlsx`.
-  - PDF : export lisible pour une remise au management ou à un jury.
+  - PDF : export lisible pour une synthèse ou une remise au management.
 
 ---
 

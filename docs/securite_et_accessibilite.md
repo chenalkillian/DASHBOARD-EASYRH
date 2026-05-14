@@ -13,6 +13,10 @@ Ce document synthétise les mesures de **sécurité** (référence OWASP) et les
 - **OWASP Top 10** : risques applicatifs web majeurs (auth, injection, config, etc.).
 - **RGAA** (France) / **OPQUAST** : bonnes pratiques d’accessibilité et de qualité UX.
 
+## Référentiel d’accessibilité (RGAA / OPQUAST)
+
+Le projet s’appuie sur **RGAA** (référence France, structure / formulaires / navigation) et **OPQUAST** (qualité d’usage, clarté des messages, cohérence UI). Toute évolution de ce fichier ou du front doit rester cohérente avec ce duo — si tu changes de cadre, mets le doc à jour en même temps.
+
 ## Sécurité (OWASP) — Mesures en place
 
 ### Authentification & session (OWASP A07 / A01)
@@ -82,10 +86,21 @@ Bonnes pratiques appliquées / à vérifier :
 - Utiliser `th scope="col"` / `th scope="row"` quand pertinent.
 - Avoir des en-têtes clairs et un ordre de lecture cohérent.
 
-## Checklist rapide (preuve de conformité)
+## Checklist rapide (à parcourir avant un rendu)
 
-- [ ] Login/Register/Forgot/Reset : `label` + `htmlFor` + `id`, erreurs lisibles (`role="alert"`).
-- [ ] Navbar/Sidebar : liens icônes avec `aria-label` / `title`.
-- [ ] Focus visible sur les boutons/liens.
-- [ ] Tables : `scope="col"` sur les `th`.
+- [x] Login/Register/Forgot/Reset : `label` + `htmlFor` + `id`, erreurs lisibles (`role="alert"`).
+- [x] Navbar : liens icônes avec `aria-label` / `title` ; **menu mobile** avec `aria-expanded`, `aria-controls`, `role="dialog"`, fermeture **Échap** et clic sur fond semi-transparent.
+- [x] Focus visible sur les boutons/liens (anneaux `focus-visible` sur le menu burger et la déconnexion).
+- [x] Tables principales : `scope="col"` sur les `th` des pages **Collaborateurs**, **Congés**, **Recrutement** ; défilement horizontal contrôlé (`overflow-x-auto`, `min-w` sur tableaux larges).
+
+## Corrections récentes (mobile + accessibilité)
+
+Mises en œuvre dans le code pour rapprocher l’interface des critères **RGAA** et des bonnes pratiques **OPQUAST** évoqués plus haut (référentiel unique du projet) :
+
+- **Petits écrans** : menu de navigation accessible via un bouton **burger** (visible uniquement en dessous de `md`), intitulés de liens explicites (texte + icône), fermeture clavier (**Échap**) et clic sur le fond semi-transparent.
+- **Layout** : conteneur principal avec `overflow-x-hidden` pour limiter le défilement horizontal accidentel.
+- **Tableaux (pages liste)** : en-têtes `scope="col"` (Collaborateurs, Congés, Recrutement) ; zone scrollable pour éviter de casser la mise en page sur mobile.
+- **Barre supérieure** : libellé « Déconnexion » lisible sur mobile, tailles de titre adaptées (`text-base` → `text-xl`).
+
+Les éléments restants (cookies HttpOnly, validation systématique des payloads, audit RGAA complet, `scope` sur d’éventuels autres tableaux) figurent dans les sections « Renforcements recommandés » et checklist ci-dessus.
 
