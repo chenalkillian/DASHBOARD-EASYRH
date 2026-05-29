@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, Mail, Lock, User } from 'lucide-react';
+import { formatAuthError } from '../utils/formatAuthError';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ const Register = () => {
         navigate('/');
       }
     } else {
-      setError(result.error);
+      setError(formatAuthError(result.error ?? ''));
     }
   };
 
