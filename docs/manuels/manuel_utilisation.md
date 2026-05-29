@@ -170,12 +170,10 @@ La demande apparaît en statut **En attente** dans le tableau.
 
 ---
 
-## 7. Paramètres (placeholder)
+## 7. Paramètres (hors version actuelle)
 
-Page : `/parametres`
-
-- Pour l’instant, cette page est un **placeholder**.
-- Elle est prévue pour accueillir ultérieurement :
+- La page **Paramètres** n’est **pas exposée** dans la version présentée (pas de route ni de lien dans le menu).
+- Le composant est conservé dans le code pour une **future version**, prévu pour accueillir :
   - la gestion des paramètres d’entreprise,
   - la gestion avancée des rôles,
   - d’autres options.

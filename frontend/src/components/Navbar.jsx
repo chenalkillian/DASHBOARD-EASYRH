@@ -7,7 +7,6 @@ import {
   LogOut,
   Users,
   BarChart3,
-  Settings,
   Menu,
   X,
 } from 'lucide-react';
@@ -112,14 +111,6 @@ const Navbar = () => {
                   <Users className="h-5 w-5" aria-hidden />
                 </NavLink>
               )}
-              <NavLink
-                to="/parametres"
-                className={iconNavClass}
-                aria-label="Aller aux paramètres"
-                title="Paramètres"
-              >
-                <Settings className="h-5 w-5" aria-hidden />
-              </NavLink>
             </div>
 
             <button
@@ -187,10 +178,6 @@ const Navbar = () => {
                   Collaborateurs
                 </NavLink>
               )}
-              <NavLink to="/parametres" className={mobileLinkClass} onClick={closeMobile}>
-                <Settings className="h-5 w-5 shrink-0" aria-hidden />
-                Paramètres
-              </NavLink>
             </nav>
           </div>
         </div>

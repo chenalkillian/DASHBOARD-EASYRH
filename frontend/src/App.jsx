@@ -7,7 +7,6 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import Parametres from './pages/Parametres';
 import Recrutement from './pages/Recrutement';
 import Onboarding from './pages/Onboarding';
 import Conges from './pages/Conges';
@@ -43,10 +42,6 @@ return (
       <Route
         path="/conges"
         element={user ? <Layout><Conges /></Layout> : <Navigate to="/login" />}
-      />
-      <Route
-        path="/parametres"
-        element={user ? <Layout><Parametres /></Layout> : <Navigate to="/login" />}
       />
     </Routes>
   </Router>

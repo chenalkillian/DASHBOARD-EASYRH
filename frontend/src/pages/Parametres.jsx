@@ -1,3 +1,4 @@
+// Page de paramètres prévue pour une future version — route /parametres retirée de App.jsx ; fichier conservé pour réintégration ultérieure.
 import { useAuth } from '../hooks/useAuth';
 
 const Parametres = () => {
