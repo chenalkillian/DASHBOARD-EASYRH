@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { BarChart3, Briefcase, Calendar, ClipboardList, Settings, Users } from 'lucide-react';
+import { BarChart3, Briefcase, Calendar, ClipboardList, Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const navLinkClass = ({ isActive }) =>
@@ -51,11 +51,6 @@ const Sidebar = () => {
               <span>Collaborateurs</span>
             </NavLink>
           )}
-
-          <NavLink to="/parametres" className={navLinkClass}>
-            <Settings className="h-5 w-5" />
-            <span>Paramètres</span>
-          </NavLink>
         </nav>
       </div>
     </aside>

@@ -183,7 +183,6 @@ Exports implementés via le backend (fichiers téléchargeables) + boutons dans 
   - `/recrutement` (RH/Manager)
   - `/onboarding` (RH/Manager)
   - `/conges` (tous)
-  - `/parametres` (placeholder)
 
 ## Configuration (dev)
 
