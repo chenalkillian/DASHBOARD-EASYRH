@@ -22,7 +22,22 @@ const authenticate = async (req, res, next) => {
 
   if (profileError) {
     console.error('Profile error:', profileError);
-    return res.status(500).json({ error: 'Erreur profil' });
+    const { data: newProfile, error: insertError } = await supabase
+      .from('profiles')
+      .insert({ id: user.id, role: 'Collaborateur' })
+      .select('role')
+      .single();
+
+    if (insertError) {
+      console.error('Profile creation error:', insertError);
+      return res.status(500).json({ error: 'Erreur profil' });
+    }
+
+    req.user = {
+      ...user,
+      role: newProfile.role,
+    };
+    return next();
   }
 
   req.user = { 
