@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getTokenFromCookie, useAuth } from '../hooks/useAuth';
+import { Inbox } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { apiFetch } from '../utils/api';
+import PageHeader from '../components/ui/PageHeader';
+import EmptyState from '../components/ui/EmptyState';
+import LoadingState from '../components/ui/LoadingState';
 
 const TYPES = ['Congés payés', 'RTT', 'Maladie', 'Sans solde'];
 const STATUTS = ['', 'En attente', 'Approuvé', 'Refusé'];
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+
 const toDateInputValue = (value) => {
   if (!value) return '';
   if (typeof value === 'string') return value.slice(0, 10);
@@ -17,6 +22,11 @@ const formatDateTime = (value) => {
   return d.toLocaleString('fr-FR');
 };
 
+const formatDemandeur = (it) => {
+  const label = [it.demandeur_prenom, it.demandeur_nom].filter(Boolean).join(' ').trim();
+  return label || 'Non renseigné';
+};
+
 const statusBadgeClass = (statut) => {
   if (statut === 'Approuvé') return 'bg-green-50 text-green-700 border-green-200';
   if (statut === 'Refusé') return 'bg-red-50 text-red-700 border-red-200';
@@ -26,8 +36,6 @@ const statusBadgeClass = (statut) => {
 const Conges = () => {
   const { user } = useAuth();
   const role = user?.role || 'Collaborateur';
-  const token = getTokenFromCookie();
-
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,14 +51,13 @@ const Conges = () => {
   });
 
   const canDecide = role === 'RH' || role === 'Manager';
+  const canRequestLeave = role === 'Collaborateur';
 
   const downloadFile = async (path, filename) => {
-    if (!token) return;
-
     setExporting(true);
     setError('');
     try {
-      const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch(path);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         const msg = data?.error || 'Erreur export';
@@ -73,12 +80,11 @@ const Conges = () => {
   };
 
   const fetchConges = async () => {
-    if (!token) return;
     setLoading(true);
     setError('');
     try {
       const qs = filterStatut ? `?statut=${encodeURIComponent(filterStatut)}` : '';
-      const res = await fetch(`${BACKEND_URL}/api/conges${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch(`/api/conges${qs}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data?.error || 'Erreur chargement congés';
@@ -113,14 +119,13 @@ const Conges = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!token) return;
 
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/conges`, {
+      const res = await apiFetch('/api/conges', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: form.type,
           date_debut: form.date_debut,
@@ -143,13 +148,12 @@ const Conges = () => {
   };
 
   const decide = async (id, decision) => {
-    if (!token) return;
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/conges/${id}/decision`, {
+      const res = await apiFetch(`/api/conges/${id}/decision`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision }),
       });
       const data = await res.json().catch(() => ({}));
@@ -166,15 +170,13 @@ const Conges = () => {
   };
 
   const remove = async (id) => {
-    if (!token) return;
     if (!window.confirm('Supprimer cette demande ?')) return;
 
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/conges/${id}`, {
+      const res = await apiFetch(`/api/conges/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
@@ -189,144 +191,276 @@ const Conges = () => {
     }
   };
 
-  if (!user) return <div>Chargement...</div>;
-  if (loading) return <div>Chargement...</div>;
+  const renderActions = (it) => (
+    <div className="flex flex-wrap gap-2">
+      {canDecide && it.statut === 'En attente' && (
+        <>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => decide(it.id, 'Approuvé')}
+            className="btn-success"
+          >
+            Approuver
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => decide(it.id, 'Refusé')}
+            className="btn-danger"
+          >
+            Refuser
+          </button>
+        </>
+      )}
+      {(canDecide || it.statut === 'En attente') && (
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => remove(it.id)}
+          className="btn-secondary"
+        >
+          Supprimer
+        </button>
+      )}
+    </div>
+  );
+
+  if (!user) return <LoadingState label="Chargement de la session…" />;
+  if (loading) return <LoadingState label="Chargement des congés…" />;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Congés</h1>
-          <p className="text-slate-600">
-            {canDecide ? 'Validation des demandes (RH/Manager).' : 'Vos demandes de congés.'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {canDecide && (
-            <>
-              <button
-                type="button"
-                disabled={exporting || saving}
-                onClick={() => downloadFile(`${BACKEND_URL}/api/exports/conges.xlsx`, 'conges.xlsx')}
-                className="bg-slate-900 text-white px-3 py-2 rounded-xl text-sm disabled:opacity-50"
-              >
-                {exporting ? 'Export...' : 'Excel'}
-              </button>
-              <button
-                type="button"
-                disabled={exporting || saving}
-                onClick={() => downloadFile(`${BACKEND_URL}/api/exports/conges.pdf`, 'conges.pdf')}
-                className="bg-slate-900 text-white px-3 py-2 rounded-xl text-sm disabled:opacity-50"
-              >
-                {exporting ? 'Export...' : 'PDF'}
-              </button>
-            </>
-          )}
-          <label className="text-sm text-slate-600">Filtre statut</label>
-          <select className="border border-slate-200 rounded-xl px-3 py-2 bg-white" value={filterStatut} onChange={(e) => setFilterStatut(e.target.value)}>
-            {STATUTS.map(s => <option key={s || 'all'} value={s}>{s || 'Tous'}</option>)}
-          </select>
-        </div>
-      </div>
+      <PageHeader
+        title="Congés"
+        description={
+          canDecide
+            ? 'Validation des demandes des collaborateurs — la création de demande est réservée aux collaborateurs.'
+            : 'Vos demandes de congés.'
+        }
+        actions={
+          <>
+            {canDecide && (
+              <>
+                <button
+                  type="button"
+                  disabled={exporting || saving}
+                  onClick={() => downloadFile('/api/exports/conges.xlsx', 'conges.xlsx')}
+                  className="btn-secondary"
+                >
+                  {exporting ? 'Export…' : 'Excel'}
+                </button>
+                <button
+                  type="button"
+                  disabled={exporting || saving}
+                  onClick={() => downloadFile('/api/exports/conges.pdf', 'conges.pdf')}
+                  className="btn-secondary"
+                >
+                  {exporting ? 'Export…' : 'PDF'}
+                </button>
+              </>
+            )}
+            <label className="label-field mb-0" htmlFor="filter-statut">
+              Statut
+            </label>
+            <select
+              id="filter-statut"
+              className="input-field w-auto min-w-[10rem]"
+              value={filterStatut}
+              onChange={(e) => setFilterStatut(e.target.value)}
+            >
+              {STATUTS.map((s) => (
+                <option key={s || 'all'} value={s}>
+                  {s || 'Tous'}
+                </option>
+              ))}
+            </select>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3">
-          <div className="text-xs text-slate-500">Total</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</div>
-        </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3">
-          <div className="text-xs text-slate-500">En attente</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{stats.attente}</div>
-        </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3">
-          <div className="text-xs text-slate-500">Approuvés</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{stats.approuve}</div>
-        </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3">
-          <div className="text-xs text-slate-500">Refusés</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{stats.refuse}</div>
-        </div>
+        {[
+          ['Total', stats.total],
+          ['En attente', stats.attente],
+          ['Approuvés', stats.approuve],
+          ['Refusés', stats.refuse],
+        ].map(([label, value]) => (
+          <div key={label} className="card-panel py-3">
+            <div className="text-xs font-medium text-slate-500">{label}</div>
+            <div className="text-2xl font-bold text-slate-900 mt-1">{value}</div>
+          </div>
+        ))}
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+        <div className="alert-error" role="alert">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <h2 className="font-semibold text-slate-900 mb-3">Nouvelle demande</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <select className="border p-2 rounded" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-            {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <input type="date" className="border p-2 rounded" value={form.date_debut} onChange={(e) => setForm({ ...form, date_debut: e.target.value })} required />
-          <input type="date" className="border p-2 rounded" value={form.date_fin} onChange={(e) => setForm({ ...form, date_fin: e.target.value })} required />
-          <input className="border p-2 rounded md:col-span-4" placeholder="Motif (optionnel)" value={form.motif} onChange={(e) => setForm({ ...form, motif: e.target.value })} />
+      {canDecide && !canRequestLeave && (
+        <div
+          className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"
+          role="status"
+        >
+          En tant que <strong>{role}</strong>, vous traitez les demandes des collaborateurs. Pour
+          poser vos propres congés, utilisez un compte au rôle Collaborateur.
         </div>
-        <div className="mt-4">
-          <button type="submit" disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50">
-            {saving ? 'Envoi...' : 'Envoyer'}
-          </button>
-        </div>
-      </form>
+      )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
-        <table className="w-full min-w-[520px]">
-          <thead>
-            <tr className="text-left text-sm text-slate-600">
-              <th scope="col" className="p-3 border-b">Type</th>
-              <th scope="col" className="p-3 border-b">Début</th>
-              <th scope="col" className="p-3 border-b">Fin</th>
-              <th scope="col" className="p-3 border-b">Statut</th>
-              <th scope="col" className="p-3 border-b">Traité le</th>
-              <th scope="col" className="p-3 border-b">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => (
-              <tr key={it.id} className="text-sm text-slate-800">
-                <td className="p-3 border-b">{it.type}</td>
-                <td className="p-3 border-b">{toDateInputValue(it.date_debut)}</td>
-                <td className="p-3 border-b">{toDateInputValue(it.date_fin)}</td>
-                <td className="p-3 border-b">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs ${statusBadgeClass(it.statut)}`}>
+      {canRequestLeave && (
+        <form onSubmit={handleSubmit} className="card-panel">
+          <h2 className="section-title mb-4">Nouvelle demande</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="label-field" htmlFor="conge-type">
+                Type
+              </label>
+              <select
+                id="conge-type"
+                className="input-field"
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+              >
+                {TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label-field" htmlFor="conge-debut">
+                Date de début
+              </label>
+              <input
+                id="conge-debut"
+                type="date"
+                className="input-field"
+                value={form.date_debut}
+                onChange={(e) => setForm({ ...form, date_debut: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label className="label-field" htmlFor="conge-fin">
+                Date de fin
+              </label>
+              <input
+                id="conge-fin"
+                type="date"
+                className="input-field"
+                value={form.date_fin}
+                onChange={(e) => setForm({ ...form, date_fin: e.target.value })}
+                required
+              />
+            </div>
+            <div className="md:col-span-4">
+              <label className="label-field" htmlFor="conge-motif">
+                Motif (optionnel)
+              </label>
+              <input
+                id="conge-motif"
+                className="input-field"
+                placeholder="Précision éventuelle"
+                value={form.motif}
+                onChange={(e) => setForm({ ...form, motif: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="mt-4">
+            <button type="submit" disabled={saving} className="btn-primary">
+              {saving ? 'Envoi…' : 'Envoyer la demande'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="card-panel p-0 overflow-hidden">
+        {!items.length ? (
+          <EmptyState
+            icon={Inbox}
+            title="Aucune demande de congé"
+            description={
+              filterStatut
+                ? `Aucun résultat pour le statut « ${filterStatut} ».`
+                : 'Les demandes apparaîtront ici une fois créées.'
+            }
+          />
+        ) : (
+          <>
+            <div className="md:hidden divide-y divide-slate-100 p-2">
+              {items.map((it) => (
+                <article key={it.id} className="p-4 space-y-2">
+                  {canDecide && (
+                    <p className="text-sm font-semibold text-slate-900">
+                      Demandeur : <span className="font-medium">{formatDemandeur(it)}</span>
+                    </p>
+                  )}
+                  <p className="text-sm text-slate-600">
+                    <span className="font-medium text-slate-800">{it.type}</span>
+                    {' · '}
+                    {toDateInputValue(it.date_debut)} → {toDateInputValue(it.date_fin)}
+                  </p>
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs ${statusBadgeClass(it.statut)}`}
+                  >
                     {it.statut}
                   </span>
-                </td>
-                <td className="p-3 border-b text-slate-600">
-                  {it.validated_at ? formatDateTime(it.validated_at) : '—'}
-                </td>
-                <td className="p-3 border-b">
-                  {canDecide && it.statut === 'En attente' && (
-                    <>
-                      <button disabled={saving} onClick={() => decide(it.id, 'Approuvé')} className="bg-green-600 text-white px-2 py-1 mr-2 rounded disabled:opacity-50">
-                        Approuver
-                      </button>
-                      <button disabled={saving} onClick={() => decide(it.id, 'Refusé')} className="bg-red-600 text-white px-2 py-1 mr-2 rounded disabled:opacity-50">
-                        Refuser
-                      </button>
-                    </>
+                  {it.validated_at && (
+                    <p className="text-xs text-slate-500">
+                      Traité le {formatDateTime(it.validated_at)}
+                    </p>
                   )}
-                  {(canDecide || it.statut === 'En attente') && (
-                    <button disabled={saving} onClick={() => remove(it.id)} className="bg-slate-200 text-slate-900 px-2 py-1 rounded disabled:opacity-50">
-                      Suppr
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {!items.length && (
-              <tr>
-                <td className="p-3 text-slate-500" colSpan={6}>Aucune demande.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  {renderActions(it)}
+                </article>
+              ))}
+            </div>
+
+            <div className="desktop-table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    {canDecide && <th scope="col">Demandeur</th>}
+                    <th scope="col">Type</th>
+                    <th scope="col">Début</th>
+                    <th scope="col">Fin</th>
+                    <th scope="col">Statut</th>
+                    <th scope="col">Traité le</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it) => (
+                    <tr key={it.id}>
+                      {canDecide && (
+                        <td className="font-medium">{formatDemandeur(it)}</td>
+                      )}
+                      <td>{it.type}</td>
+                      <td>{toDateInputValue(it.date_debut)}</td>
+                      <td>{toDateInputValue(it.date_fin)}</td>
+                      <td>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs ${statusBadgeClass(it.statut)}`}
+                        >
+                          {it.statut}
+                        </span>
+                      </td>
+                      <td className="text-slate-600">
+                        {it.validated_at ? formatDateTime(it.validated_at) : '—'}
+                      </td>
+                      <td>{renderActions(it)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 };
 
 export default Conges;
-

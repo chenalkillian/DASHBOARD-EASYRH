@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowRight } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { formatAuthError } from '../utils/formatAuthError';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -20,7 +21,7 @@ const ForgotPassword = () => {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      setError(formatAuthError(error.message ?? ''));
       return;
     }
     setInfo("Si l'email existe, un lien de réinitialisation vient d'être envoyé.");

@@ -1,4 +1,8 @@
-import { getTokenFromCookie } from './authToken';
+import { apiUrl } from '../config/api';
+import { clearTokenCookie, getTokenFromCookie } from './authToken';
+
+const isPublicAuthRequest = (url) =>
+  /\/api\/auth\/(login|register)$/.test(url);
 
 export async function apiFetch(url, options = {}) {
   const token = getTokenFromCookie();
@@ -8,9 +12,11 @@ export async function apiFetch(url, options = {}) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(url, { ...options, headers });
+  const resolvedUrl = url.startsWith('http') ? url : apiUrl(url);
+  const response = await fetch(resolvedUrl, { ...options, headers });
 
-  if (response.status === 401) {
+  if (response.status === 401 && !isPublicAuthRequest(resolvedUrl)) {
+    clearTokenCookie();
     window.location.href = '/login';
   }
 

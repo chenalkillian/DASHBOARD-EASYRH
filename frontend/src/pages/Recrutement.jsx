@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { getTokenFromCookie, useAuth } from '../hooks/useAuth';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Briefcase, Inbox } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { apiFetch } from '../utils/api';
+import PageHeader from '../components/ui/PageHeader';
+import EmptyState from '../components/ui/EmptyState';
+import LoadingState from '../components/ui/LoadingState';
 
 const STATUTS = ['Nouveau', 'En cours', 'Entretien', 'Offre', 'Rejeté', 'Embauché'];
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const emptyForm = {
   nom: '',
   prenom: '',
@@ -21,9 +25,27 @@ const toDateInputValue = (value) => {
   return '';
 };
 
+const display = (value) => {
+  if (value == null || String(value).trim() === '') return '—';
+  return String(value);
+};
+
+const statutBadgeClass = (statut) => {
+  const map = {
+    Nouveau: 'bg-slate-100 text-slate-700 border-slate-200',
+    'En cours': 'bg-blue-50 text-blue-800 border-blue-200',
+    Entretien: 'bg-violet-50 text-violet-800 border-violet-200',
+    Offre: 'bg-amber-50 text-amber-900 border-amber-200',
+    Rejeté: 'bg-red-50 text-red-800 border-red-200',
+    Embauché: 'bg-green-50 text-green-800 border-green-200',
+  };
+  return map[statut] || 'bg-slate-50 text-slate-700 border-slate-200';
+};
+
 const Recrutement = () => {
   const { user } = useAuth();
   const role = user?.role || 'Collaborateur';
+  const formRef = useRef(null);
 
   const [candidats, setCandidats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,18 +69,17 @@ const Recrutement = () => {
   }, [candidats]);
 
   const fetchCandidats = async () => {
-    const token = getTokenFromCookie();
-    if (!token) return;
-
     setLoading(true);
     setError('');
 
     try {
       const qs = filterStatut ? `?statut=${encodeURIComponent(filterStatut)}` : '';
-      const res = await fetch(`${BACKEND_URL}/api/recrutement${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch(`/api/recrutement${qs}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data?.error || (res.status === 403 ? 'Accès réservé RH/Manager' : 'Erreur chargement candidats');
+        const msg =
+          data?.error ||
+          (res.status === 403 ? 'Accès réservé RH/Manager' : 'Erreur chargement candidats');
         throw new Error(msg);
       }
       setCandidats(Array.isArray(data) ? data : []);
@@ -70,13 +91,10 @@ const Recrutement = () => {
   };
 
   const downloadFile = async (path, filename) => {
-    const token = getTokenFromCookie();
-    if (!token) return;
-
     setExporting(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch(path);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         const msg = data?.error || 'Erreur export';
@@ -114,8 +132,6 @@ const Recrutement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const token = getTokenFromCookie();
-    if (!token) return;
 
     setSaving(true);
     setError('');
@@ -129,12 +145,12 @@ const Recrutement = () => {
         notes: form.notes || null,
       };
 
-      const url = editingId ? `${BACKEND_URL}/api/recrutement/${editingId}` : `${BACKEND_URL}/api/recrutement`;
+      const path = editingId ? `/api/recrutement/${editingId}` : '/api/recrutement';
       const method = editingId ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await apiFetch(path, {
         method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -166,22 +182,26 @@ const Recrutement = () => {
       date_candidature: toDateInputValue(c.date_candidature),
       notes: c.notes || '',
     });
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Supprimer ce candidat ?')) return;
-    const token = getTokenFromCookie();
-    if (!token) return;
 
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/recrutement/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch(`/api/recrutement/${id}`, {
+        method: 'DELETE',
+      });
       if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
         const msg = data?.error || 'Erreur suppression';
         throw new Error(msg);
       }
+      if (editingId === id) resetForm();
       await fetchCandidats();
     } catch (e) {
       setError(e.message);
@@ -190,127 +210,351 @@ const Recrutement = () => {
     }
   };
 
-  if (!user) return <div>Chargement...</div>;
-  if (!canAccess) return <div className="p-6 bg-white rounded-2xl shadow-sm border border-slate-200">Accès réservé RH/Manager.</div>;
-  if (loading) return <div>Chargement...</div>;
+  if (!user) return <LoadingState label="Chargement de la session…" />;
+  if (!canAccess) {
+    return (
+      <div className="card-panel">
+        <p className="text-slate-700">Accès réservé aux rôles RH et Manager.</p>
+      </div>
+    );
+  }
+  if (loading) return <LoadingState label="Chargement du recrutement…" />;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Recrutement</h1>
-          <p className="text-slate-600">Suivi des candidats, statuts et pipeline.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={exporting || saving}
-            onClick={() => downloadFile('/api/exports/recrutement.xlsx', 'recrutement.xlsx')}
-            className="bg-slate-900 text-white px-3 py-2 rounded-xl text-sm disabled:opacity-50"
-          >
-            {exporting ? 'Export...' : 'Excel'}
-          </button>
-          <button
-            type="button"
-            disabled={exporting || saving}
-            onClick={() => downloadFile('/api/exports/recrutement.pdf', 'recrutement.pdf')}
-            className="bg-slate-900 text-white px-3 py-2 rounded-xl text-sm disabled:opacity-50"
-          >
-            {exporting ? 'Export...' : 'PDF'}
-          </button>
-          <label className="text-sm text-slate-600">Filtre statut</label>
-          <select className="border border-slate-200 rounded-xl px-3 py-2 bg-white" value={filterStatut} onChange={(e) => setFilterStatut(e.target.value)}>
-            <option value="">Tous</option>
-            {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-      </div>
+      <PageHeader
+        title="Recrutement"
+        description="Suivi des candidats, statuts et pipeline."
+        actions={
+          <>
+            <button
+              type="button"
+              disabled={exporting || saving}
+              onClick={() => downloadFile('/api/exports/recrutement.xlsx', 'recrutement.xlsx')}
+              className="btn-secondary"
+            >
+              {exporting ? 'Export…' : 'Excel'}
+            </button>
+            <button
+              type="button"
+              disabled={exporting || saving}
+              onClick={() => downloadFile('/api/exports/recrutement.pdf', 'recrutement.pdf')}
+              className="btn-secondary"
+            >
+              {exporting ? 'Export…' : 'PDF'}
+            </button>
+            <select
+              className="input-field w-auto min-w-[10rem]"
+              value={filterStatut}
+              onChange={(e) => setFilterStatut(e.target.value)}
+              aria-label="Filtrer par statut"
+            >
+              <option value="">Tous les statuts</option>
+              {STATUTS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {STATUTS.map((s) => (
-          <div key={s} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3">
-            <div className="text-xs text-slate-500">{s}</div>
+          <div key={s} className="card-panel py-3">
+            <div className="text-xs font-medium text-slate-500">{s}</div>
             <div className="text-2xl font-bold text-slate-900 mt-1">{stats[s] || 0}</div>
           </div>
         ))}
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+        <div className="alert-error" role="alert">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input className="border p-2 rounded" placeholder="Nom" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} required />
-          <input className="border p-2 rounded" placeholder="Prénom" value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })} required />
-          <input className="border p-2 rounded" placeholder="Poste visé" value={form.poste} onChange={e => setForm({ ...form, poste: e.target.value })} required />
-
-          <input className="border p-2 rounded" placeholder="Email (optionnel)" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-          <input className="border p-2 rounded" placeholder="Téléphone (optionnel)" value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} />
-          <input className="border p-2 rounded" placeholder="Source (LinkedIn, cooptation...)" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} />
-
-          <select className="border p-2 rounded" value={form.statut} onChange={e => setForm({ ...form, statut: e.target.value })}>
-            {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <input type="date" className="border p-2 rounded" value={form.date_candidature} onChange={e => setForm({ ...form, date_candidature: e.target.value })} />
-          <input className="border p-2 rounded md:col-span-3" placeholder="Notes (optionnel)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+      <form
+        ref={formRef}
+        id="recrutement-form"
+        onSubmit={handleSubmit}
+        className={`card-panel transition-shadow ${editingId ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+      >
+        <h2 className="section-title mb-1">
+          {editingId ? 'Modifier le candidat' : 'Nouveau candidat'}
+        </h2>
+        {editingId && (
+          <p className="text-sm text-blue-700 mb-4">
+            Modification en cours — mettez à jour le statut, les notes ou les coordonnées puis
+            enregistrez.
+          </p>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="label-field" htmlFor="cand-nom">
+              Nom
+            </label>
+            <input
+              id="cand-nom"
+              className="input-field"
+              value={form.nom}
+              onChange={(e) => setForm({ ...form, nom: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="cand-prenom">
+              Prénom
+            </label>
+            <input
+              id="cand-prenom"
+              className="input-field"
+              value={form.prenom}
+              onChange={(e) => setForm({ ...form, prenom: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="cand-poste">
+              Poste visé
+            </label>
+            <input
+              id="cand-poste"
+              className="input-field"
+              value={form.poste}
+              onChange={(e) => setForm({ ...form, poste: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="cand-email">
+              Email
+            </label>
+            <input
+              id="cand-email"
+              type="email"
+              className="input-field"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="cand-tel">
+              Téléphone
+            </label>
+            <input
+              id="cand-tel"
+              className="input-field"
+              value={form.telephone}
+              onChange={(e) => setForm({ ...form, telephone: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="cand-source">
+              Source
+            </label>
+            <input
+              id="cand-source"
+              className="input-field"
+              placeholder="LinkedIn, cooptation…"
+              value={form.source}
+              onChange={(e) => setForm({ ...form, source: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="cand-statut">
+              Statut
+            </label>
+            <select
+              id="cand-statut"
+              className="input-field"
+              value={form.statut}
+              onChange={(e) => setForm({ ...form, statut: e.target.value })}
+            >
+              {STATUTS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label-field" htmlFor="cand-date">
+              Date de candidature
+            </label>
+            <input
+              id="cand-date"
+              type="date"
+              className="input-field"
+              value={form.date_candidature}
+              onChange={(e) => setForm({ ...form, date_candidature: e.target.value })}
+            />
+          </div>
+          <div className="md:col-span-3">
+            <label className="label-field" htmlFor="cand-notes">
+              Notes
+            </label>
+            <input
+              id="cand-notes"
+              className="input-field"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <button type="submit" disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50">
-            {saving ? 'Enregistrement...' : (editingId ? 'Enregistrer' : 'Ajouter')}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="submit" disabled={saving} className="btn-primary">
+            {saving ? 'Enregistrement…' : editingId ? 'Enregistrer les modifications' : 'Ajouter'}
           </button>
           {editingId && (
-            <button type="button" disabled={saving} onClick={resetForm} className="bg-slate-200 text-slate-900 px-4 py-2 rounded disabled:opacity-50">
+            <button type="button" disabled={saving} onClick={resetForm} className="btn-secondary">
               Annuler
             </button>
           )}
         </div>
       </form>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
-        <table className="w-full min-w-[560px]">
-          <thead>
-            <tr className="text-left text-sm text-slate-600">
-              <th scope="col" className="p-3 border-b">Nom</th>
-              <th scope="col" className="p-3 border-b">Prénom</th>
-              <th scope="col" className="p-3 border-b">Poste</th>
-              <th scope="col" className="p-3 border-b">Statut</th>
-              <th scope="col" className="p-3 border-b">Date</th>
-              <th scope="col" className="p-3 border-b">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {candidats.map((c) => (
-              <tr key={c.id} className="text-sm text-slate-800">
-                <td className="p-3 border-b">{c.nom}</td>
-                <td className="p-3 border-b">{c.prenom}</td>
-                <td className="p-3 border-b">{c.poste}</td>
-                <td className="p-3 border-b">{c.statut}</td>
-                <td className="p-3 border-b">{toDateInputValue(c.date_candidature)}</td>
-                <td className="p-3 border-b">
-                  <button disabled={saving} onClick={() => handleEdit(c)} className="bg-yellow-600 text-white px-2 py-1 mr-2 rounded disabled:opacity-50">
-                    Edit
-                  </button>
-                  <button disabled={saving} onClick={() => handleDelete(c.id)} className="bg-red-600 text-white px-2 py-1 rounded disabled:opacity-50">
-                    Suppr
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {!candidats.length && (
-              <tr>
-                <td className="p-3 text-slate-500" colSpan={6}>Aucun candidat.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="card-panel p-0 overflow-hidden">
+        {!candidats.length ? (
+          <EmptyState
+            icon={Briefcase}
+            title="Aucun candidat"
+            description="Ajoutez un candidat via le formulaire ci-dessus ou modifiez le filtre de statut."
+          />
+        ) : (
+          <>
+            <div className="md:hidden divide-y divide-slate-100">
+              {candidats.map((c) => (
+                <article key={c.id} className="p-4 space-y-2 text-sm">
+                  <p className="font-semibold text-slate-900 text-base">
+                    {c.prenom} {c.nom}
+                  </p>
+                  <p className="text-slate-600">{display(c.poste)}</p>
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${statutBadgeClass(c.statut)}`}
+                  >
+                    {display(c.statut)}
+                  </span>
+                  <dl className="grid grid-cols-1 gap-1 text-slate-600">
+                    <div>
+                      <dt className="text-xs text-slate-400">Email</dt>
+                      <dd>{display(c.email)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-slate-400">Téléphone</dt>
+                      <dd>{display(c.telephone)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-slate-400">Source</dt>
+                      <dd>{display(c.source)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-slate-400">Date candidature</dt>
+                      <dd>{toDateInputValue(c.date_candidature) || '—'}</dd>
+                    </div>
+                    {c.notes && (
+                      <div>
+                        <dt className="text-xs text-slate-400">Notes</dt>
+                        <dd className="text-slate-800">{c.notes}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => handleEdit(c)}
+                      className="btn-warning"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => handleDelete(c.id)}
+                      className="btn-danger"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="desktop-table-wrap overflow-x-auto">
+              <table className="data-table min-w-[1080px]">
+                <thead>
+                  <tr>
+                    <th scope="col">Nom</th>
+                    <th scope="col">Prénom</th>
+                    <th scope="col">Poste</th>
+                    <th scope="col">Statut</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Téléphone</th>
+                    <th scope="col">Source</th>
+                    <th scope="col">Date cand.</th>
+                    <th scope="col">Notes</th>
+                    <th scope="col" className="sticky right-0 bg-slate-50/95">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {candidats.map((c) => (
+                    <tr key={c.id}>
+                      <td className="font-medium">{display(c.nom)}</td>
+                      <td>{display(c.prenom)}</td>
+                      <td>{display(c.poste)}</td>
+                      <td>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium whitespace-nowrap ${statutBadgeClass(c.statut)}`}
+                        >
+                          {display(c.statut)}
+                        </span>
+                      </td>
+                      <td className="max-w-[180px] truncate" title={c.email || ''}>
+                        {display(c.email)}
+                      </td>
+                      <td className="whitespace-nowrap">{display(c.telephone)}</td>
+                      <td>{display(c.source)}</td>
+                      <td className="whitespace-nowrap">
+                        {toDateInputValue(c.date_candidature) || '—'}
+                      </td>
+                      <td className="max-w-[200px] truncate text-slate-600" title={c.notes || ''}>
+                        {display(c.notes)}
+                      </td>
+                      <td className="sticky right-0 bg-white">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => handleEdit(c)}
+                            className="btn-warning"
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => handleDelete(c.id)}
+                            className="btn-danger"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 };
 
 export default Recrutement;
-
