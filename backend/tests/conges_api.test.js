@@ -17,29 +17,46 @@ jest.mock('../src/middleware/authMiddleware', () => ({
   },
 }));
 
-jest.mock('../src/db/supabaseClient', () => ({
+const mockSupabase = {
   from: jest.fn(),
-}));
+  auth: {
+    admin: {
+      getUserById: jest.fn(),
+    },
+  },
+};
 
-const mockCollaborateursLookup = () => {
-  const inFn = jest.fn().mockResolvedValue({ data: [], error: null });
-  const select = jest.fn().mockReturnValue({ in: inFn });
+jest.mock('../src/db/supabaseClient', () => mockSupabase);
+
+const mockCollaborateursLookup = (rows = []) => {
+  const inFn = jest.fn().mockResolvedValue({ data: rows, error: null });
+  const maybeSingle = jest.fn().mockResolvedValue({ data: null, error: null });
+  const eq = jest.fn().mockReturnValue({ maybeSingle });
+  const select = jest.fn().mockReturnValue({ in: inFn, eq });
   return { select };
 };
 
 beforeEach(() => {
-  const supabase = require('../src/db/supabaseClient');
-  supabase.from.mockReset();
+  mockSupabase.from.mockReset();
+  mockSupabase.auth.admin.getUserById.mockReset();
+  mockSupabase.auth.admin.getUserById.mockResolvedValue({
+    data: {
+      user: {
+        email: 'jean.dupont@entreprise.com',
+        user_metadata: { full_name: 'Jean Dupont' },
+      },
+    },
+    error: null,
+  });
 });
 
 describe('Congés - GET /api/conges (filtrage collaborateur)', () => {
   it('applique eq(created_by) pour un Collaborateur', async () => {
-    const supabase = require('../src/db/supabaseClient');
     const rows = [{ id: 1, type: 'CP', created_by: 'user-abc' }];
     const eqCreated = jest.fn().mockResolvedValueOnce({ data: rows, error: null });
     const order = jest.fn().mockReturnValue({ eq: eqCreated });
     const select = jest.fn().mockReturnValue({ order });
-    supabase.from
+    mockSupabase.from
       .mockReturnValueOnce({ select })
       .mockReturnValueOnce(mockCollaborateursLookup())
       .mockReturnValueOnce(mockCollaborateursLookup());
@@ -50,22 +67,25 @@ describe('Congés - GET /api/conges (filtrage collaborateur)', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0]).toMatchObject({
-      demandeur_nom: null,
-      demandeur_prenom: null,
+      demandeur_nom: 'Dupont',
+      demandeur_prenom: 'Jean',
     });
+    expect(mockSupabase.auth.admin.getUserById).toHaveBeenCalledWith('user-abc');
     expect(eqCreated).toHaveBeenCalledWith('created_by', 'user-abc');
   });
 });
 
 describe('Congés - POST /api/conges', () => {
   it('crée une demande En attente (201)', async () => {
-    const supabase = require('../src/db/supabaseClient');
-    const created = { id: 55, statut: 'En attente', type: 'RTT' };
+    const created = { id: 55, statut: 'En attente', type: 'RTT', created_by: 'user-abc' };
     const single = jest.fn().mockResolvedValueOnce({ data: created, error: null });
     const select = jest.fn().mockReturnValue({ single });
-    supabase.from.mockReturnValueOnce({
-      insert: jest.fn().mockReturnValue({ select }),
-    });
+    mockSupabase.from
+      .mockReturnValueOnce({
+        insert: jest.fn().mockReturnValue({ select }),
+      })
+      .mockReturnValueOnce(mockCollaborateursLookup())
+      .mockReturnValueOnce(mockCollaborateursLookup());
 
     const app = require('../src/app');
     const res = await request(app)
@@ -76,6 +96,7 @@ describe('Congés - POST /api/conges', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.statut).toBe('En attente');
+    expect(res.body.demandeur_prenom).toBe('Jean');
   });
 });
 
@@ -117,14 +138,13 @@ describe('Congés - PUT /api/conges/:id/decision', () => {
 
 describe('Congés - DELETE /api/conges/:id (collaborateur)', () => {
   it('403 si la demande appartient à un autre utilisateur', async () => {
-    const supabase = require('../src/db/supabaseClient');
     const single = jest.fn().mockResolvedValueOnce({
       data: { id: 1, statut: 'En attente', created_by: 'autre-user' },
       error: null,
     });
     const eq = jest.fn().mockReturnValue({ single });
     const select = jest.fn().mockReturnValue({ eq });
-    supabase.from.mockReturnValueOnce({ select });
+    mockSupabase.from.mockReturnValueOnce({ select });
 
     const app = require('../src/app');
     const res = await request(app).delete('/api/conges/1').set('x-test-role', 'Collaborateur').set('x-test-user-id', 'user-abc');

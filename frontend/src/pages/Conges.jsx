@@ -23,8 +23,12 @@ const formatDateTime = (value) => {
 };
 
 const formatDemandeur = (it) => {
-  const label = [it.demandeur_prenom, it.demandeur_nom].filter(Boolean).join(' ').trim();
-  return label || 'Non renseigné';
+  const parts = [it.demandeur_prenom, it.demandeur_nom].filter(Boolean);
+  const unique = [...new Set(parts)];
+  const label = unique.join(' ').trim();
+  if (label) return label;
+  if (it.demandeur_email) return it.demandeur_email;
+  return 'Non renseigné';
 };
 
 const statusBadgeClass = (statut) => {
