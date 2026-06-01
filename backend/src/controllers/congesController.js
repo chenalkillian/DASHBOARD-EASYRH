@@ -2,27 +2,76 @@
 // Je centralise ici la logique métier liée aux demandes de congés (création, liste, décision, suppression).
 const supabase = require('../db/supabaseClient');
 
-/** Enrichit les demandes avec nom/prénom du demandeur (table collaborateurs, lien via created_by). */
+/** Découpe un nom complet Supabase (user_metadata.full_name) en prénom + nom. */
+const parseFullName = (fullName) => {
+  if (!fullName || typeof fullName !== 'string') return { prenom: null, nom: null };
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { prenom: null, nom: null };
+  if (parts.length === 1) return { prenom: parts[0], nom: parts[0] };
+  return { prenom: parts[0], nom: parts.slice(1).join(' ') };
+};
+
 const attachDemandeurs = async (congesList) => {
   if (!congesList?.length) return congesList;
 
   const userIds = [...new Set(congesList.map((c) => c.created_by).filter(Boolean))];
   if (!userIds.length) return congesList;
 
-  const [byIdRes, byCreatedByRes] = await Promise.all([
-    supabase.from('collaborateurs').select('id, nom, prenom').in('id', userIds),
-    supabase.from('collaborateurs').select('nom, prenom, created_by').in('created_by', userIds),
-  ]);
-
   const demandeurMap = new Map();
-  for (const col of byIdRes.data || []) {
-    if (userIds.includes(col.id)) demandeurMap.set(col.id, col);
-  }
-  for (const col of byCreatedByRes.data || []) {
-    if (col.created_by && userIds.includes(col.created_by)) {
-      demandeurMap.set(col.created_by, col);
+
+  const { data: collabsById, error: collabByIdError } = await supabase
+    .from('collaborateurs')
+    .select('id, nom, prenom')
+    .in('id', userIds);
+
+  if (!collabByIdError) {
+    for (const col of collabsById || []) {
+      demandeurMap.set(col.id, {
+        nom: col.nom,
+        prenom: col.prenom,
+        email: null,
+      });
     }
   }
+
+  const missingIds = userIds.filter((id) => !demandeurMap.has(id));
+
+  await Promise.all(
+    missingIds.map(async (userId) => {
+      const { data: authData, error: authError } = await supabase.auth.admin.getUserById(userId);
+      if (authError || !authData?.user) return;
+
+      const { user } = authData;
+
+      if (user.email) {
+        const { data: byEmail, error: byEmailError } = await supabase
+          .from('collaborateurs')
+          .select('nom, prenom')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (!byEmailError && byEmail) {
+          demandeurMap.set(userId, {
+            nom: byEmail.nom,
+            prenom: byEmail.prenom,
+            email: user.email,
+          });
+          return;
+        }
+      }
+
+      const fromMeta = parseFullName(user.user_metadata?.full_name);
+      if (fromMeta.prenom || fromMeta.nom) {
+        demandeurMap.set(userId, { ...fromMeta, email: user.email ?? null });
+        return;
+      }
+
+      if (user.email) {
+        const local = user.email.split('@')[0];
+        demandeurMap.set(userId, { prenom: local, nom: '', email: user.email });
+      }
+    }),
+  );
 
   return congesList.map((c) => {
     const d = demandeurMap.get(c.created_by);
@@ -30,6 +79,7 @@ const attachDemandeurs = async (congesList) => {
       ...c,
       demandeur_nom: d?.nom ?? null,
       demandeur_prenom: d?.prenom ?? null,
+      demandeur_email: d?.email ?? null,
     };
   });
 };
@@ -76,7 +126,9 @@ const create = async (req, res) => {
     .single();
 
   if (error) return res.status(400).json({ error: error.message });
-  res.status(201).json(data);
+
+  const [enriched] = await attachDemandeurs([data]);
+  res.status(201).json(enriched);
 };
 
 // Décision RH/Manager : on approuve ou refuse une demande existante.
