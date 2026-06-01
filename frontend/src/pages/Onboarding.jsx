@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getTokenFromCookie, useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
+import { apiFetch } from '../utils/api';
 
 const DEFAULT_TEMPLATE = [
   { titre: 'Préparer le contrat', categorie: 'RH' },
@@ -7,7 +8,6 @@ const DEFAULT_TEMPLATE = [
   { titre: 'Préparer le poste de travail', categorie: 'Logistique' },
   { titre: 'Planifier le point de bienvenue', categorie: 'Manager' },
 ];
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 const Onboarding = () => {
   const { user } = useAuth();
   const role = user?.role || 'Collaborateur';
@@ -28,14 +28,12 @@ const Onboarding = () => {
     [collaborateurs, selectedId],
   );
 
-  const token = getTokenFromCookie();
 
   const fetchCollaborateurs = async () => {
-    if (!token) return;
     setLoadingCollab(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/collaborateurs`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch('/api/collaborateurs');
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data?.error?.message || data?.error || 'Erreur chargement collaborateurs';
@@ -53,11 +51,11 @@ const Onboarding = () => {
   };
 
   const fetchTasks = async (collabId) => {
-    if (!token || !collabId) return;
+    if (!collabId) return;
     setLoadingTasks(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/onboarding/${collabId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch(`/api/onboarding/${collabId}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data?.error || 'Erreur chargement checklist';
@@ -92,7 +90,7 @@ const Onboarding = () => {
   }, [selectedId]);
 
   const handleCreateFromTemplate = async () => {
-    if (!selectedId || !token) return;
+    if (!selectedId) return;
     setSaving(true);
     setError('');
     try {
@@ -101,9 +99,9 @@ const Onboarding = () => {
 
       for (let i = 0; i < DEFAULT_TEMPLATE.length; i += 1) {
         const t = DEFAULT_TEMPLATE[i];
-        await fetch(`${BACKEND_URL}/api/onboarding/${selectedId}`, {
+        await apiFetch(`/api/onboarding/${selectedId}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             titre: t.titre,
             categorie: t.categorie,
@@ -122,13 +120,13 @@ const Onboarding = () => {
 
   const handleAddTask = async (e) => {
     e.preventDefault();
-    if (!newTaskTitre.trim() || !selectedId || !token) return;
+    if (!newTaskTitre.trim() || !selectedId) return;
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/onboarding/${selectedId}`, {
+      const res = await apiFetch(`/api/onboarding/${selectedId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           titre: newTaskTitre.trim(),
           categorie: 'Personnalisé',
@@ -151,13 +149,12 @@ const Onboarding = () => {
   };
 
   const toggleDone = async (task) => {
-    if (!token) return;
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/onboarding/task/${task.id}`, {
+      const res = await apiFetch(`/api/onboarding/task/${task.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ termine: !task.termine }),
       });
       const data = await res.json().catch(() => ({}));
@@ -174,14 +171,12 @@ const Onboarding = () => {
   };
 
   const deleteTask = async (id) => {
-    if (!token) return;
     if (!window.confirm('Supprimer cette tâche ?')) return;
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/onboarding/task/${id}`, {
+      const res = await apiFetch(`/api/onboarding/task/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));

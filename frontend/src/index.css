@@ -1,2 +1,85 @@
 @import "tailwindcss";
 
+@layer base {
+  body {
+    @apply text-slate-800 antialiased;
+  }
+}
+
+@layer components {
+  .page-title {
+    @apply text-2xl sm:text-3xl font-bold tracking-tight text-slate-900;
+  }
+
+  .page-subtitle {
+    @apply mt-1 text-sm sm:text-base text-slate-600;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-slate-900;
+  }
+
+  .card-panel {
+    @apply bg-white rounded-2xl shadow-sm border border-slate-200/90 p-4 sm:p-5;
+  }
+
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-200 active:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2;
+  }
+
+  .btn-danger {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-success {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 active:bg-green-800 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-warning {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 active:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .input-field {
+    @apply w-full min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-shadow focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25;
+  }
+
+  .label-field {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+
+  .alert-error {
+    @apply rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800;
+  }
+
+  .data-table {
+    @apply w-full min-w-[520px] text-sm;
+  }
+
+  .data-table thead tr {
+    @apply text-left text-slate-600 bg-slate-50/80;
+  }
+
+  .data-table th {
+    @apply p-3 border-b border-slate-200 font-semibold;
+  }
+
+  .data-table tbody tr {
+    @apply text-slate-800 transition-colors hover:bg-slate-50/80;
+  }
+
+  .data-table td {
+    @apply p-3 border-b border-slate-100;
+  }
+
+  .mobile-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-2 md:hidden;
+  }
+
+  .desktop-table-wrap {
+    @apply hidden md:block overflow-x-auto;
+  }
+}

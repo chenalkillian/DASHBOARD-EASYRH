@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { clearTokenCookie, getTokenFromCookie, setTokenCookie } from '../utils/authToken';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+import { apiUrl } from '../config/api';
+import { apiFetch } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -9,10 +9,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(() => !!getTokenFromCookie());
 
-  const fetchMe = async (token) => {
-    const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const fetchMe = async () => {
+    const res = await apiFetch('/api/auth/me');
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = data?.error || 'Token invalide';
@@ -25,7 +23,7 @@ export const AuthProvider = ({ children }) => {
     const token = getTokenFromCookie();
     if (!token) return;
 
-    fetchMe(token)
+    fetchMe()
       .then((u) => setUser(u))
       .catch(() => {
         clearTokenCookie();
@@ -36,7 +34,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      const res = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -48,7 +46,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       setTokenCookie(data.token);
-      const me = await fetchMe(data.token);
+      const me = await fetchMe();
       setUser(me);
 
       return { success: true };
@@ -59,7 +57,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async ({ email, password, full_name }) => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
+      const res = await fetch(apiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, full_name }),

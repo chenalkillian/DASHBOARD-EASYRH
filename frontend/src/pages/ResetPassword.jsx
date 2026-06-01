@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, ArrowRight } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { formatAuthError } from '../utils/formatAuthError';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ const ResetPassword = () => {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      setError(formatAuthError(error.message ?? ''));
       return;
     }
 

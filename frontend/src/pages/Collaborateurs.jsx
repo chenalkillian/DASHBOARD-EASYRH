@@ -1,8 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getTokenFromCookie, useAuth } from '../hooks/useAuth';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Users } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { apiFetch } from '../utils/api';
+import PageHeader from '../components/ui/PageHeader';
+import EmptyState from '../components/ui/EmptyState';
+import LoadingState from '../components/ui/LoadingState';
 
 const Collaborateurs = () => {
   const { user } = useAuth();
+  const formRef = useRef(null);
   const [collaborateurs, setCollaborateurs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -19,19 +25,19 @@ const Collaborateurs = () => {
     salaire: '',
     status: 'Actif',
   });
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-  const fetchCollaborateurs = useCallback(async () => {
-    const token = getTokenFromCookie();
-    if (!token) return;
 
+  const fetchCollaborateurs = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/collaborateurs`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch('/api/collaborateurs');
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data?.error?.message || data?.error || (res.status === 403 ? 'Accès réservé RH' : 'Erreur chargement collaborateurs');
+        const msg =
+          data?.error?.message ||
+          data?.error ||
+          (res.status === 403 ? 'Accès réservé RH' : 'Erreur chargement collaborateurs');
         throw new Error(msg);
       }
       setCollaborateurs(Array.isArray(data) ? data : []);
@@ -40,7 +46,7 @@ const Collaborateurs = () => {
     } finally {
       setLoading(false);
     }
-  }, [BACKEND_URL]);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -66,8 +72,6 @@ const Collaborateurs = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const token = getTokenFromCookie();
-    if (!token) return;
 
     setSaving(true);
     setError('');
@@ -78,11 +82,11 @@ const Collaborateurs = () => {
     };
 
     try {
-      const url = editingId ? `${BACKEND_URL}/api/collaborateurs/${editingId}` : `${BACKEND_URL}/api/collaborateurs`;
+      const path = editingId ? `/api/collaborateurs/${editingId}` : '/api/collaborateurs';
       const method = editingId ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await apiFetch(path, {
         method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -118,22 +122,24 @@ const Collaborateurs = () => {
       salaire: c.salaire ?? '',
       status: c.status || 'Actif',
     });
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Supprimer ?')) return;
-    const token = getTokenFromCookie();
-    if (!token) return;
+    if (!window.confirm('Supprimer ce collaborateur ?')) return;
 
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}/api/collaborateurs/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch(`/api/collaborateurs/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
         const msg = data?.error?.message || data?.error || 'Erreur suppression';
         throw new Error(msg);
       }
+      if (editingId === id) resetForm();
       await fetchCollaborateurs();
     } catch (e) {
       setError(e.message);
@@ -143,13 +149,10 @@ const Collaborateurs = () => {
   };
 
   const downloadFile = async (path, filename) => {
-    const token = getTokenFromCookie();
-    if (!token) return;
-
     setExporting(true);
     setError('');
     try {
-      const res = await fetch(`${BACKEND_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch(path);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         const msg = data?.error || 'Erreur export';
@@ -171,115 +174,272 @@ const Collaborateurs = () => {
     }
   };
 
-  if (!user) return <div>Chargement...</div>;
+  if (!user) return <LoadingState label="Chargement de la session…" />;
   if (user?.role && user.role !== 'RH') {
-    return <div className="p-6 max-w-7xl mx-auto">Accès réservé au rôle RH.</div>;
+    return (
+      <div className="card-panel">
+        <p className="text-slate-700">Accès réservé au rôle RH.</p>
+      </div>
+    );
   }
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return <LoadingState label="Chargement des collaborateurs…" />;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Collaborateurs</h1>
-          <p className="text-slate-600">Gestion et exports.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={exporting || saving}
-            onClick={() => downloadFile('/api/exports/collaborateurs.xlsx', 'collaborateurs.xlsx')}
-            className="bg-slate-900 text-white px-4 py-2 rounded disabled:opacity-50"
-          >
-            {exporting ? 'Export...' : 'Exporter Excel'}
-          </button>
-          <button
-            type="button"
-            disabled={exporting || saving}
-            onClick={() => downloadFile('/api/exports/collaborateurs.pdf', 'collaborateurs.pdf')}
-            className="bg-slate-900 text-white px-4 py-2 rounded disabled:opacity-50"
-          >
-            {exporting ? 'Export...' : 'Exporter PDF'}
-          </button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Collaborateurs"
+        description="Gestion des fiches et exports."
+        actions={
+          <>
+            <button
+              type="button"
+              disabled={exporting || saving}
+              onClick={() => downloadFile('/api/exports/collaborateurs.xlsx', 'collaborateurs.xlsx')}
+              className="btn-secondary"
+            >
+              {exporting ? 'Export…' : 'Excel'}
+            </button>
+            <button
+              type="button"
+              disabled={exporting || saving}
+              onClick={() => downloadFile('/api/exports/collaborateurs.pdf', 'collaborateurs.pdf')}
+              className="btn-secondary"
+            >
+              {exporting ? 'Export…' : 'PDF'}
+            </button>
+          </>
+        }
+      />
+
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
+        <div className="alert-error" role="alert">
           {error}
         </div>
       )}
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input className="border p-2 rounded" placeholder="Nom" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} required />
-          <input className="border p-2 rounded" placeholder="Prénom" value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })} required />
-          <input className="border p-2 rounded" placeholder="Poste" value={form.poste} onChange={e => setForm({ ...form, poste: e.target.value })} required />
 
-          <input className="border p-2 rounded" placeholder="Service" value={form.service} onChange={e => setForm({ ...form, service: e.target.value })} required />
-          <select className="border p-2 rounded" value={form.contrat} onChange={e => setForm({ ...form, contrat: e.target.value })}>
-            <option value="CDI">CDI</option>
-            <option value="CDD">CDD</option>
-            <option value="Alternance">Alternance</option>
-            <option value="Stage">Stage</option>
-            <option value="Freelance">Freelance</option>
-          </select>
-          <select className="border p-2 rounded" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-            <option value="Actif">Actif</option>
-            <option value="Suspendu">Suspendu</option>
-          </select>
-
-          <input type="date" className="border p-2 rounded" value={form.date_embauche} onChange={e => setForm({ ...form, date_embauche: e.target.value })} required />
-          <input className="border p-2 rounded" placeholder="Salaire €" value={form.salaire} onChange={e => setForm({ ...form, salaire: e.target.value })} required />
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        className={`card-panel transition-shadow ${editingId ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+      >
+        <h2 className="section-title mb-4">
+          {editingId ? 'Modifier le collaborateur' : 'Nouveau collaborateur'}
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="label-field" htmlFor="collab-nom">
+              Nom
+            </label>
+            <input
+              id="collab-nom"
+              className="input-field"
+              value={form.nom}
+              onChange={(e) => setForm({ ...form, nom: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="collab-prenom">
+              Prénom
+            </label>
+            <input
+              id="collab-prenom"
+              className="input-field"
+              value={form.prenom}
+              onChange={(e) => setForm({ ...form, prenom: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="collab-poste">
+              Poste
+            </label>
+            <input
+              id="collab-poste"
+              className="input-field"
+              value={form.poste}
+              onChange={(e) => setForm({ ...form, poste: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="collab-service">
+              Service
+            </label>
+            <input
+              id="collab-service"
+              className="input-field"
+              value={form.service}
+              onChange={(e) => setForm({ ...form, service: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="collab-contrat">
+              Contrat
+            </label>
+            <select
+              id="collab-contrat"
+              className="input-field"
+              value={form.contrat}
+              onChange={(e) => setForm({ ...form, contrat: e.target.value })}
+            >
+              <option value="CDI">CDI</option>
+              <option value="CDD">CDD</option>
+              <option value="Alternance">Alternance</option>
+              <option value="Stage">Stage</option>
+            </select>
+          </div>
+          <div>
+            <label className="label-field" htmlFor="collab-status">
+              Statut
+            </label>
+            <select
+              id="collab-status"
+              className="input-field"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
+              <option value="Actif">Actif</option>
+              <option value="Suspendu">Suspendu</option>
+            </select>
+          </div>
+          <div>
+            <label className="label-field" htmlFor="collab-date">
+              Date d&apos;embauche
+            </label>
+            <input
+              id="collab-date"
+              type="date"
+              className="input-field"
+              value={form.date_embauche}
+              onChange={(e) => setForm({ ...form, date_embauche: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label-field" htmlFor="collab-salaire">
+              Salaire (€)
+            </label>
+            <input
+              id="collab-salaire"
+              type="number"
+              className="input-field"
+              value={form.salaire}
+              onChange={(e) => setForm({ ...form, salaire: e.target.value })}
+              required
+            />
+          </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <button type="submit" disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50">
-            {saving ? 'Enregistrement...' : (editingId ? 'Enregistrer' : 'Ajouter')}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="submit" disabled={saving} className="btn-primary">
+            {saving ? 'Enregistrement…' : editingId ? 'Enregistrer' : 'Ajouter'}
           </button>
           {editingId && (
-            <button type="button" disabled={saving} onClick={resetForm} className="bg-slate-200 text-slate-900 px-4 py-2 rounded disabled:opacity-50">
+            <button type="button" disabled={saving} onClick={resetForm} className="btn-secondary">
               Annuler
             </button>
           )}
         </div>
       </form>
-      <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto -mx-1 sm:mx-0">
-        <table className="w-full min-w-[640px] text-sm sm:text-base">
-        <thead>
-          <tr>
-            <th scope="col" className="text-left p-2 border-b">Nom</th>
-            <th scope="col" className="text-left p-2 border-b">Prénom</th>
-            <th scope="col" className="text-left p-2 border-b">Poste</th>
-            <th scope="col" className="text-left p-2 border-b">Service</th>
-            <th scope="col" className="text-left p-2 border-b">Contrat</th>
-            <th scope="col" className="text-left p-2 border-b">Date</th>
-            <th scope="col" className="text-left p-2 border-b">Statut</th>
-            <th scope="col" className="text-left p-2 border-b">Salaire</th>
-            <th scope="col" className="text-left p-2 border-b">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {collaborateurs.map((c) => (
-            <tr key={c.id}>
-              <td className="p-2 border-b">{c.nom}</td>
-              <td className="p-2 border-b">{c.prenom}</td>
-              <td className="p-2 border-b">{c.poste}</td>
-              <td className="p-2 border-b">{c.service}</td>
-              <td className="p-2 border-b">{c.contrat}</td>
-              <td className="p-2 border-b">{toDateInputValue(c.date_embauche)}</td>
-              <td className="p-2 border-b">{c.status}</td>
-              <td className="p-2 border-b">{c.salaire}€</td>
-              <td className="p-2 border-b">
-                <button disabled={saving} onClick={() => handleEdit(c)} className="bg-yellow-600 text-white px-2 py-1 mr-2 rounded disabled:opacity-50">
-                  Edit
-                </button>
-                <button disabled={saving} onClick={() => handleDelete(c.id)} className="bg-red-600 text-white px-2 py-1 rounded disabled:opacity-50">
-                  Suppr
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+      <div className="card-panel p-0 overflow-hidden">
+        {!collaborateurs.length ? (
+          <EmptyState
+            icon={Users}
+            title="Aucun collaborateur"
+            description="Ajoutez une fiche via le formulaire ci-dessus."
+          />
+        ) : (
+          <>
+            <div className="md:hidden divide-y divide-slate-100">
+              {collaborateurs.map((c) => (
+                <article key={c.id} className="p-4 space-y-2">
+                  <p className="font-semibold text-slate-900">
+                    {c.prenom} {c.nom}
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    {c.poste} · {c.service} · {c.contrat}
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    {toDateInputValue(c.date_embauche)} · {c.status} · {c.salaire} €
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => handleEdit(c)}
+                      className="btn-warning"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => handleDelete(c.id)}
+                      className="btn-danger"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="desktop-table-wrap">
+              <table className="data-table min-w-[720px]">
+                <thead>
+                  <tr>
+                    <th scope="col">Nom</th>
+                    <th scope="col">Prénom</th>
+                    <th scope="col">Poste</th>
+                    <th scope="col">Service</th>
+                    <th scope="col">Contrat</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Statut</th>
+                    <th scope="col">Salaire</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {collaborateurs.map((c) => (
+                    <tr key={c.id}>
+                      <td>{c.nom}</td>
+                      <td>{c.prenom}</td>
+                      <td>{c.poste}</td>
+                      <td>{c.service}</td>
+                      <td>{c.contrat}</td>
+                      <td>{toDateInputValue(c.date_embauche)}</td>
+                      <td>{c.status}</td>
+                      <td>{c.salaire} €</td>
+                      <td>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => handleEdit(c)}
+                            className="btn-warning"
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => handleDelete(c.id)}
+                            className="btn-danger"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

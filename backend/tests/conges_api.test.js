@@ -21,20 +21,38 @@ jest.mock('../src/db/supabaseClient', () => ({
   from: jest.fn(),
 }));
 
+const mockCollaborateursLookup = () => {
+  const inFn = jest.fn().mockResolvedValue({ data: [], error: null });
+  const select = jest.fn().mockReturnValue({ in: inFn });
+  return { select };
+};
+
+beforeEach(() => {
+  const supabase = require('../src/db/supabaseClient');
+  supabase.from.mockReset();
+});
+
 describe('Congés - GET /api/conges (filtrage collaborateur)', () => {
   it('applique eq(created_by) pour un Collaborateur', async () => {
     const supabase = require('../src/db/supabaseClient');
-    const rows = [{ id: 1, type: 'CP' }];
+    const rows = [{ id: 1, type: 'CP', created_by: 'user-abc' }];
     const eqCreated = jest.fn().mockResolvedValueOnce({ data: rows, error: null });
     const order = jest.fn().mockReturnValue({ eq: eqCreated });
     const select = jest.fn().mockReturnValue({ order });
-    supabase.from.mockReturnValueOnce({ select });
+    supabase.from
+      .mockReturnValueOnce({ select })
+      .mockReturnValueOnce(mockCollaborateursLookup())
+      .mockReturnValueOnce(mockCollaborateursLookup());
 
     const app = require('../src/app');
     const res = await request(app).get('/api/conges').set('x-test-role', 'Collaborateur').set('x-test-user-id', 'user-abc');
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({
+      demandeur_nom: null,
+      demandeur_prenom: null,
+    });
     expect(eqCreated).toHaveBeenCalledWith('created_by', 'user-abc');
   });
 });
@@ -58,6 +76,29 @@ describe('Congés - POST /api/conges', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.statut).toBe('En attente');
+  });
+});
+
+describe('Congés - POST /api/conges (rôles validateurs)', () => {
+  it('403 pour RH (validation uniquement)', async () => {
+    const app = require('../src/app');
+    const res = await request(app)
+      .post('/api/conges')
+      .set('x-test-role', 'RH')
+      .send({ type: 'RTT', date_debut: '2026-06-01', date_fin: '2026-06-03' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/ne peuvent pas créer/i);
+  });
+
+  it('403 pour Manager', async () => {
+    const app = require('../src/app');
+    const res = await request(app)
+      .post('/api/conges')
+      .set('x-test-role', 'Manager')
+      .send({ type: 'RTT', date_debut: '2026-06-01', date_fin: '2026-06-03' });
+
+    expect(res.status).toBe(403);
   });
 });
 

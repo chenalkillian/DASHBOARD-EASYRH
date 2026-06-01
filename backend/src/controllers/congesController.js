@@ -2,6 +2,38 @@
 // Je centralise ici la logique métier liée aux demandes de congés (création, liste, décision, suppression).
 const supabase = require('../db/supabaseClient');
 
+/** Enrichit les demandes avec nom/prénom du demandeur (table collaborateurs, lien via created_by). */
+const attachDemandeurs = async (congesList) => {
+  if (!congesList?.length) return congesList;
+
+  const userIds = [...new Set(congesList.map((c) => c.created_by).filter(Boolean))];
+  if (!userIds.length) return congesList;
+
+  const [byIdRes, byCreatedByRes] = await Promise.all([
+    supabase.from('collaborateurs').select('id, nom, prenom').in('id', userIds),
+    supabase.from('collaborateurs').select('nom, prenom, created_by').in('created_by', userIds),
+  ]);
+
+  const demandeurMap = new Map();
+  for (const col of byIdRes.data || []) {
+    if (userIds.includes(col.id)) demandeurMap.set(col.id, col);
+  }
+  for (const col of byCreatedByRes.data || []) {
+    if (col.created_by && userIds.includes(col.created_by)) {
+      demandeurMap.set(col.created_by, col);
+    }
+  }
+
+  return congesList.map((c) => {
+    const d = demandeurMap.get(c.created_by);
+    return {
+      ...c,
+      demandeur_nom: d?.nom ?? null,
+      demandeur_prenom: d?.prenom ?? null,
+    };
+  });
+};
+
 const getAll = async (req, res) => {
   const { statut } = req.query;
 
@@ -19,10 +51,18 @@ const getAll = async (req, res) => {
 
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+
+  const enriched = await attachDemandeurs(data);
+  res.json(enriched);
 };
 
 const create = async (req, res) => {
+  if (req.user?.role === 'RH' || req.user?.role === 'Manager') {
+    return res.status(403).json({
+      error: 'Les rôles RH et Manager ne peuvent pas créer de demande de congé',
+    });
+  }
+
   const payload = {
     ...req.body,
     created_by: req.user.id,
