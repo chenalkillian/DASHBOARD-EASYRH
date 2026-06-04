@@ -79,15 +79,16 @@ const Collaborateurs = () => {
 
     setSaving(true);
     setError('');
+const { role, ...formWithoutRole } = form;
 
-    const payload = {
-      ...form,
-      salaire: form.salaire === '' ? null : Number(form.salaire),
-    };
-    if (editingId && user?.role === 'RH') {
-      payload.role = form.role;
-    }
+const payload = {
+  ...formWithoutRole,
+  salaire: form.salaire === '' ? null : Number(form.salaire),
+};
 
+if (editingId && user?.role === 'RH') {
+  payload.role = role;
+}
 
     try {
       const path = editingId ? `/api/collaborateurs/${editingId}` : '/api/collaborateurs';
