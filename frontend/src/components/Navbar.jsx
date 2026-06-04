@@ -73,7 +73,7 @@ const Navbar = () => {
               >
                 <BarChart3 className="h-5 w-5" aria-hidden />
               </NavLink>
-              {(role === 'RH' || role === 'Manager') && (
+              {role === 'RH' && (
                 <NavLink
                   to="/recrutement"
                   className={iconNavClass}
@@ -101,7 +101,7 @@ const Navbar = () => {
               >
                 <Calendar className="h-5 w-5" aria-hidden />
               </NavLink>
-              {role === 'RH' && (
+              {(role === 'RH' || role === 'Manager') && (
                 <NavLink
                   to="/collaborateurs"
                   className={iconNavClass}
@@ -156,7 +156,7 @@ const Navbar = () => {
                 <BarChart3 className="h-5 w-5 shrink-0" aria-hidden />
                 Dashboard
               </NavLink>
-              {(role === 'RH' || role === 'Manager') && (
+              {role === 'RH' && (
                 <NavLink to="/recrutement" className={mobileLinkClass} onClick={closeMobile}>
                   <Briefcase className="h-5 w-5 shrink-0" aria-hidden />
                   Recrutement
@@ -172,7 +172,7 @@ const Navbar = () => {
                 <Calendar className="h-5 w-5 shrink-0" aria-hidden />
                 Congés
               </NavLink>
-              {role === 'RH' && (
+              {(role === 'RH' || role === 'Manager') && (
                 <NavLink to="/collaborateurs" className={mobileLinkClass} onClick={closeMobile}>
                   <Users className="h-5 w-5 shrink-0" aria-hidden />
                   Collaborateurs

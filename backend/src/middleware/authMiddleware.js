@@ -18,17 +18,21 @@ const authenticate = async (req, res, next) => {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
   if (profileError) {
     console.error('Profile error:', profileError);
+    return res.status(500).json({ error: 'Erreur profil' });
+  }
+
+  if (!profile) {
     const { data: newProfile, error: insertError } = await supabase
       .from('profiles')
       .insert({ id: user.id, role: 'Collaborateur' })
       .select('role')
-      .single();
+      .maybeSingle();
 
-    if (insertError) {
+    if (insertError || !newProfile) {
       console.error('Profile creation error:', insertError);
       return res.status(500).json({ error: 'Erreur profil' });
     }
@@ -40,9 +44,9 @@ const authenticate = async (req, res, next) => {
     return next();
   }
 
-  req.user = { 
-    ...user, 
-    role: profile?.role || 'Collaborateur' 
+  req.user = {
+    ...user,
+    role: profile.role || 'Collaborateur',
   };
   next();
 };

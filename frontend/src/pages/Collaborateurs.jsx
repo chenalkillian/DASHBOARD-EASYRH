@@ -8,6 +8,11 @@ import LoadingState from '../components/ui/LoadingState';
 
 const Collaborateurs = () => {
   const { user } = useAuth();
+  const role = user?.role || 'Collaborateur';
+  const isRh = role === 'RH';
+  const isManagerReadOnly = role === 'Manager';
+  const canAccess = isRh || isManagerReadOnly;
+  const canEdit = isRh;
   const formRef = useRef(null);
   const [collaborateurs, setCollaborateurs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +94,7 @@ const Collaborateurs = () => {
       salaire: form.salaire === '' ? null : Number(form.salaire),
     };
 
-    if (editingId && user?.role === 'RH') {
+    if (editingId && isRh) {
       payload.role = role;
     } else if (!editingId) {
       payload.email = email;
@@ -192,7 +197,7 @@ const Collaborateurs = () => {
   };
 
   if (!user) return <LoadingState label="Chargement de la session…" />;
-  if (user?.role && user.role !== 'RH') {
+  if (!canAccess) {
     return (
       <div className="card-panel">
         <p className="text-slate-700">Accès réservé au rôle RH.</p>
@@ -205,26 +210,32 @@ const Collaborateurs = () => {
     <div className="space-y-6">
       <PageHeader
         title="Collaborateurs"
-        description="Gestion des fiches et exports."
+        description={
+          isManagerReadOnly
+            ? 'Consultation des fiches (lecture seule).'
+            : 'Gestion des fiches et exports.'
+        }
         actions={
-          <>
-            <button
-              type="button"
-              disabled={exporting || saving}
-              onClick={() => downloadFile('/api/exports/collaborateurs.xlsx', 'collaborateurs.xlsx')}
-              className="btn-secondary"
-            >
-              {exporting ? 'Export…' : 'Excel'}
-            </button>
-            <button
-              type="button"
-              disabled={exporting || saving}
-              onClick={() => downloadFile('/api/exports/collaborateurs.pdf', 'collaborateurs.pdf')}
-              className="btn-secondary"
-            >
-              {exporting ? 'Export…' : 'PDF'}
-            </button>
-          </>
+          isRh ? (
+            <>
+              <button
+                type="button"
+                disabled={exporting || saving}
+                onClick={() => downloadFile('/api/exports/collaborateurs.xlsx', 'collaborateurs.xlsx')}
+                className="btn-secondary"
+              >
+                {exporting ? 'Export…' : 'Excel'}
+              </button>
+              <button
+                type="button"
+                disabled={exporting || saving}
+                onClick={() => downloadFile('/api/exports/collaborateurs.pdf', 'collaborateurs.pdf')}
+                className="btn-secondary"
+              >
+                {exporting ? 'Export…' : 'PDF'}
+              </button>
+            </>
+          ) : null
         }
       />
 
@@ -234,6 +245,13 @@ const Collaborateurs = () => {
         </div>
       )}
 
+      {isManagerReadOnly && (
+        <p className="text-sm text-slate-600 card-panel py-3">
+          Vue Manager : consultation uniquement (pas de création, modification ni gestion des rôles).
+        </p>
+      )}
+
+      {canEdit && (
       <form
         ref={formRef}
         onSubmit={handleSubmit}
@@ -324,7 +342,7 @@ const Collaborateurs = () => {
               </div>
             </>
           )}
-          {editingId && user?.role === 'RH' && (
+          {editingId && (
   <div>
     <label className="label-field" htmlFor="collab-role">
       Rôle applicatif
@@ -412,13 +430,18 @@ const Collaborateurs = () => {
           )}
         </div>
       </form>
+      )}
 
       <div className="card-panel p-0 overflow-hidden">
         {!collaborateurs.length ? (
           <EmptyState
             icon={Users}
             title="Aucun collaborateur"
-            description="Ajoutez une fiche via le formulaire ci-dessus."
+            description={
+              canEdit
+                ? 'Ajoutez une fiche via le formulaire ci-dessus.'
+                : 'Aucune fiche collaborateur pour le moment.'
+            }
           />
         ) : (
           <>
@@ -434,24 +457,26 @@ const Collaborateurs = () => {
                   <p className="text-sm text-slate-500">
                     {toDateInputValue(c.date_embauche)} · {c.status} · {c.salaire} €
                   </p>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => handleEdit(c)}
-                      className="btn-warning"
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => handleDelete(c.id)}
-                      className="btn-danger"
-                    >
-                      Supprimer
-                    </button>
-                  </div>
+                  {canEdit && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => handleEdit(c)}
+                        className="btn-warning"
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => handleDelete(c.id)}
+                        className="btn-danger"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>
@@ -468,7 +493,7 @@ const Collaborateurs = () => {
                     <th scope="col">Date</th>
                     <th scope="col">Statut</th>
                     <th scope="col">Salaire</th>
-                    <th scope="col">Actions</th>
+                    {canEdit && <th scope="col">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -482,26 +507,28 @@ const Collaborateurs = () => {
                       <td>{toDateInputValue(c.date_embauche)}</td>
                       <td>{c.status}</td>
                       <td>{c.salaire} €</td>
-                      <td>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => handleEdit(c)}
-                            className="btn-warning"
-                          >
-                            Modifier
-                          </button>
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => handleDelete(c.id)}
-                            className="btn-danger"
-                          >
-                            Supprimer
-                          </button>
-                        </div>
-                      </td>
+                      {canEdit && (
+                        <td>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => handleEdit(c)}
+                              className="btn-warning"
+                            >
+                              Modifier
+                            </button>
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => handleDelete(c.id)}
+                              className="btn-danger"
+                            >
+                              Supprimer
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

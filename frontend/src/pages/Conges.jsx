@@ -54,7 +54,8 @@ const Conges = () => {
     motif: '',
   });
 
-  const canDecide = role === 'RH' || role === 'Manager';
+  const canViewAll = role === 'RH' || role === 'Manager';
+  const canApprove = role === 'RH';
   const canRequestLeave = role === 'Collaborateur';
 
   const downloadFile = async (path, filename) => {
@@ -197,7 +198,7 @@ const Conges = () => {
 
   const renderActions = (it) => (
     <div className="flex flex-wrap gap-2">
-      {canDecide && it.statut === 'En attente' && (
+      {canApprove && it.statut === 'En attente' && (
         <>
           <button
             type="button"
@@ -217,7 +218,7 @@ const Conges = () => {
           </button>
         </>
       )}
-      {(canDecide || it.statut === 'En attente') && (
+      {(canApprove || (canRequestLeave && it.statut === 'En attente')) && (
         <button
           type="button"
           disabled={saving}
@@ -238,13 +239,15 @@ const Conges = () => {
       <PageHeader
         title="Congés"
         description={
-          canDecide
-            ? 'Validation des demandes des collaborateurs — la création de demande est réservée aux collaborateurs.'
+          canViewAll
+            ? role === 'Manager'
+              ? 'Consultation de toutes les demandes — la validation est réservée au RH.'
+              : 'Validation des demandes des collaborateurs — la création de demande est réservée aux collaborateurs.'
             : 'Vos demandes de congés.'
         }
         actions={
           <>
-            {canDecide && (
+            {canViewAll && (
               <>
                 <button
                   type="button"
@@ -303,7 +306,7 @@ const Conges = () => {
         </div>
       )}
 
-      {canDecide && !canRequestLeave && (
+      {canViewAll && !canRequestLeave && (
         <div
           className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"
           role="status"
@@ -397,7 +400,7 @@ const Conges = () => {
             <div className="md:hidden divide-y divide-slate-100 p-2">
               {items.map((it) => (
                 <article key={it.id} className="p-4 space-y-2">
-                  {canDecide && (
+                  {canViewAll && (
                     <p className="text-sm font-semibold text-slate-900">
                       Demandeur : <span className="font-medium">{formatDemandeur(it)}</span>
                     </p>
@@ -426,7 +429,7 @@ const Conges = () => {
               <table className="data-table">
                 <thead>
                   <tr>
-                    {canDecide && <th scope="col">Demandeur</th>}
+                    {canViewAll && <th scope="col">Demandeur</th>}
                     <th scope="col">Type</th>
                     <th scope="col">Début</th>
                     <th scope="col">Fin</th>
@@ -438,7 +441,7 @@ const Conges = () => {
                 <tbody>
                   {items.map((it) => (
                     <tr key={it.id}>
-                      {canDecide && (
+                      {canViewAll && (
                         <td className="font-medium">{formatDemandeur(it)}</td>
                       )}
                       <td>{it.type}</td>
