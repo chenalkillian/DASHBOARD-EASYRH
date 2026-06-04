@@ -22,7 +22,7 @@ const corsOptions = {
 };
 
 // CORS pour toutes les routes
-app.use(cors(corsOptions));
+app.use(cors());
 
 // CORS pour le préflight sur /api/auth/login
 app.options('/api/auth/login', cors(corsOptions));
