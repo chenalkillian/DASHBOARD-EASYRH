@@ -25,7 +25,8 @@ const Collaborateurs = () => {
     salaire: '',
     status: 'Actif',
     role: 'Collaborateur',
-
+    email: '',
+    password: '',
   });
   const ROLES = ['RH', 'Manager', 'Collaborateur'];
 
@@ -70,6 +71,9 @@ const Collaborateurs = () => {
       date_embauche: '',
       salaire: '',
       status: 'Actif',
+      role: 'Collaborateur',
+      email: '',
+      password: '',
     });
     setEditingId(null);
   };
@@ -79,16 +83,18 @@ const Collaborateurs = () => {
 
     setSaving(true);
     setError('');
-const { role, ...formWithoutRole } = form;
+    const { role, email, password, ...rest } = form;
+    const payload = {
+      ...rest,
+      salaire: form.salaire === '' ? null : Number(form.salaire),
+    };
 
-const payload = {
-  ...formWithoutRole,
-  salaire: form.salaire === '' ? null : Number(form.salaire),
-};
-
-if (editingId && user?.role === 'RH') {
-  payload.role = role;
-}
+    if (editingId && user?.role === 'RH') {
+      payload.role = role;
+    } else if (!editingId) {
+      payload.email = email;
+      payload.password = password;
+    }
 
     try {
       const path = editingId ? `/api/collaborateurs/${editingId}` : '/api/collaborateurs';
@@ -285,8 +291,40 @@ if (editingId && user?.role === 'RH') {
               required
             />
           </div>
-          
-                {editingId && user?.role === 'RH' && (
+          {!editingId && (
+            <>
+              <div>
+                <label className="label-field" htmlFor="collab-email">
+                  Email (compte de connexion)
+                </label>
+                <input
+                  id="collab-email"
+                  type="email"
+                  className="input-field"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  required
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="label-field" htmlFor="collab-password">
+                  Mot de passe temporaire
+                </label>
+                <input
+                  id="collab-password"
+                  type="password"
+                  className="input-field"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </div>
+            </>
+          )}
+          {editingId && user?.role === 'RH' && (
   <div>
     <label className="label-field" htmlFor="collab-role">
       Rôle applicatif

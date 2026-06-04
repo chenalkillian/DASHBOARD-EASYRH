@@ -30,13 +30,18 @@ const postCollaborateurRules = [
     .withMessage('Le contrat est obligatoire')
     .isIn(CONTRATS_VALIDES)
     .withMessage(`Le contrat doit être parmi : ${CONTRATS_VALIDES.join(', ')}`),
-
-  body('role')
-    .optional()
-    .isIn(ROLES_VALIDES)
-    .withMessage(`Le rôle doit être parmi : ${ROLES_VALIDES.join(', ')}`),
-
-  ];
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage("L'email est obligatoire")
+    .isEmail()
+    .withMessage('Email invalide'),
+  body('password')
+    .notEmpty()
+    .withMessage('Le mot de passe temporaire est obligatoire')
+    .isLength({ min: 6 })
+    .withMessage('Le mot de passe doit contenir au moins 6 caractères'),
+];
 
 const putCollaborateurRules = [
   body('nom').optional().trim().notEmpty().withMessage('Le nom ne peut pas être vide'),
@@ -51,6 +56,10 @@ const putCollaborateurRules = [
     .optional()
     .isIn(CONTRATS_VALIDES)
     .withMessage(`Le contrat doit être parmi : ${CONTRATS_VALIDES.join(', ')}`),
+  body('role')
+    .optional()
+    .isIn(ROLES_VALIDES)
+    .withMessage(`Le rôle doit être parmi : ${ROLES_VALIDES.join(', ')}`),
 ];
 
 // Protégées RH uniquement
