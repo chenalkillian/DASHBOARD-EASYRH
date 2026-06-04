@@ -24,7 +24,11 @@ const Collaborateurs = () => {
     date_embauche: '',
     salaire: '',
     status: 'Actif',
+    role: 'Collaborateur',
+
   });
+  const ROLES = ['RH', 'Manager', 'Collaborateur'];
+
 
   const fetchCollaborateurs = useCallback(async () => {
     setLoading(true);
@@ -80,6 +84,10 @@ const Collaborateurs = () => {
       ...form,
       salaire: form.salaire === '' ? null : Number(form.salaire),
     };
+    if (editingId && user?.role === 'RH') {
+      payload.role = form.role;
+    }
+
 
     try {
       const path = editingId ? `/api/collaborateurs/${editingId}` : '/api/collaborateurs';
@@ -121,6 +129,8 @@ const Collaborateurs = () => {
       date_embauche: toDateInputValue(c.date_embauche),
       salaire: c.salaire ?? '',
       status: c.status || 'Actif',
+      role: c.role || 'Collaborateur',
+
     });
     requestAnimationFrame(() => {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -274,6 +284,24 @@ const Collaborateurs = () => {
               required
             />
           </div>
+          
+                {editingId && user?.role === 'RH' && (
+  <div>
+    <label className="label-field" htmlFor="collab-role">
+      Rôle applicatif
+    </label>
+    <select
+      id="collab-role"
+      className="input-field"
+      value={form.role}
+      onChange={(e) => setForm({ ...form, role: e.target.value })}
+    >
+      {ROLES.map((r) => (
+        <option key={r} value={r}>{r}</option>
+      ))}
+    </select>
+  </div>
+)}
           <div>
             <label className="label-field" htmlFor="collab-contrat">
               Contrat
@@ -330,6 +358,8 @@ const Collaborateurs = () => {
               required
             />
           </div>
+          
+          
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
