@@ -5,6 +5,7 @@ const { authenticate, authorize } = require('../middleware/authMiddleware');
 const { getAll, create, getById, update, remove } = require('../controllers/collaborateurController');
 
 const CONTRATS_VALIDES = ['CDI', 'CDD', 'Stage', 'Alternance'];
+const ROLES_VALIDES = ['RH', 'Manager', 'Collaborateur'];
 
 const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -29,7 +30,13 @@ const postCollaborateurRules = [
     .withMessage('Le contrat est obligatoire')
     .isIn(CONTRATS_VALIDES)
     .withMessage(`Le contrat doit être parmi : ${CONTRATS_VALIDES.join(', ')}`),
-];
+
+  body('role')
+    .optional()
+    .isIn(ROLES_VALIDES)
+    .withMessage(`Le rôle doit être parmi : ${ROLES_VALIDES.join(', ')}`),
+
+  ];
 
 const putCollaborateurRules = [
   body('nom').optional().trim().notEmpty().withMessage('Le nom ne peut pas être vide'),
