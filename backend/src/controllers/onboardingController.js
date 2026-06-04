@@ -25,9 +25,10 @@ const createTask = async (req, res) => {
     .from('onboarding_tasks')
     .insert([payload])
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return res.status(400).json({ error: error.message });
+  if (!data) return res.status(400).json({ error: 'Échec de la création de la tâche' });
   res.status(201).json(data);
 };
 
@@ -39,9 +40,10 @@ const updateTask = async (req, res) => {
     .update(req.body)
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return res.status(400).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: 'Tâche introuvable' });
   res.json(data);
 };
 

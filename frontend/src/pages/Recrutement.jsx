@@ -57,7 +57,7 @@ const Recrutement = () => {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
-  const canAccess = role === 'RH' || role === 'Manager';
+  const canAccess = role === 'RH';
 
   const stats = useMemo(() => {
     const counts = STATUTS.reduce((acc, s) => ({ ...acc, [s]: 0 }), {});
@@ -214,7 +214,7 @@ const Recrutement = () => {
   if (!canAccess) {
     return (
       <div className="card-panel">
-        <p className="text-slate-700">Accès réservé aux rôles RH et Manager.</p>
+        <p className="text-slate-700">Accès réservé au rôle RH.</p>
       </div>
     );
   }

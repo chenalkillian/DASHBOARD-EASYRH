@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { Users, UserCheck, UserX, Clock } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { apiFetch } from '../utils/api';
+import {
+  filterDashboardStatsForManager,
+  getUserService,
+} from '../utils/roleUi';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -79,6 +83,8 @@ const KpiCard = ({ label, value, accent, children }) => (
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const role = user?.role || 'Collaborateur';
+  const managerService = getUserService(user);
   const [stats, setStats] = useState({
     total: 0,
     services: {},
@@ -87,17 +93,20 @@ const Dashboard = () => {
     status: { actif: 0, suspendu: 0 },
     ancienneteMoyenne: 0,
   });
+  const [displayStats, setDisplayStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!user) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    setError('');
+    let cancelled = false;
 
-    apiFetch('/api/dashboard/stats')
-      .then(async (res) => {
+    const load = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const res = await apiFetch('/api/dashboard/stats');
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const msg =
@@ -105,20 +114,44 @@ const Dashboard = () => {
             (res.status === 403 ? 'Accès réservé RH/Manager' : 'Erreur chargement KPI');
           throw new Error(msg);
         }
-        return data;
-      })
-      .then(setStats)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [user]);
+        if (cancelled) return;
+        setStats(data);
+
+        if (role === 'Manager' && managerService) {
+          const collabRes = await apiFetch('/api/collaborateurs');
+          const collabs = await collabRes.json().catch(() => []);
+          if (cancelled) return;
+          if (collabRes.ok && Array.isArray(collabs)) {
+            const inService = collabs.filter((c) => c.service === managerService);
+            setDisplayStats(filterDashboardStatsForManager(data, managerService, inService));
+          } else {
+            setDisplayStats(filterDashboardStatsForManager(data, managerService));
+          }
+        } else {
+          setDisplayStats(data);
+        }
+      } catch (e) {
+        if (!cancelled) setError(e.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, role, managerService]);
+
+  const view = displayStats ?? stats;
 
   const servicesEntries = useMemo(
-    () => Object.entries(stats.services || {}).sort((a, b) => (b[1] || 0) - (a[1] || 0)),
-    [stats.services],
+    () => Object.entries(view.services || {}).sort((a, b) => (b[1] || 0) - (a[1] || 0)),
+    [view.services],
   );
   const contratsEntries = useMemo(
-    () => Object.entries(stats.contrats || {}).sort((a, b) => (b[1] || 0) - (a[1] || 0)),
-    [stats.contrats],
+    () => Object.entries(view.contrats || {}).sort((a, b) => (b[1] || 0) - (a[1] || 0)),
+    [view.contrats],
   );
 
   const effectifsData = useMemo(
@@ -126,14 +159,14 @@ const Dashboard = () => {
       labels: ['Actifs', 'Suspendus'],
       datasets: [
         {
-          data: [stats.status?.actif ?? 0, stats.status?.suspendu ?? 0],
+          data: [view.status?.actif ?? 0, view.status?.suspendu ?? 0],
           backgroundColor: ['#10B981', '#F59E0B'],
           borderWidth: 0,
           hoverOffset: 6,
         },
       ],
     }),
-    [stats.status],
+    [view.status],
   );
 
   const servicesData = useMemo(() => {
@@ -170,9 +203,9 @@ const Dashboard = () => {
   }, [contratsEntries]);
 
   const ancienneteData = useMemo(() => {
-    const counts = (stats.anciennete || []).map((a) => a.count);
+    const counts = (view.anciennete || []).map((a) => a.count);
     return {
-      labels: (stats.anciennete || []).map((a) => a.range),
+      labels: (view.anciennete || []).map((a) => a.range),
       datasets: [
         {
           label: 'Collaborateurs',
@@ -189,22 +222,26 @@ const Dashboard = () => {
         },
       ],
     };
-  }, [stats.anciennete]);
+  }, [view.anciennete]);
 
   const tauxActifs = useMemo(() => {
-    const total = stats.total || 0;
-    const actifs = stats.status?.actif ?? 0;
+    const total = view.total || 0;
+    const actifs = view.status?.actif ?? 0;
     if (!total) return 0;
     return Math.round((actifs / total) * 100);
-  }, [stats]);
+  }, [view]);
 
   if (loading) return <LoadingState label="Chargement des indicateurs RH…" />;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tableau de bord RH"
-        description="Pilotage des effectifs, répartitions et ancienneté — vue administrative."
+        title={role === 'Manager' ? 'Tableau de bord Manager' : 'Tableau de bord RH'}
+        description={
+          role === 'Manager' && managerService
+            ? `Indicateurs limités au service ${managerService}.`
+            : 'Pilotage des effectifs, répartitions et ancienneté — vue administrative.'
+        }
         actions={
           user?.role ? (
             <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800 border border-blue-100">
@@ -221,18 +258,18 @@ const Dashboard = () => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard label="Effectif total" value={stats.total ?? 0} accent="#2563EB">
+        <KpiCard label="Effectif total" value={view.total ?? 0} accent="#2563EB">
           <Users className="h-6 w-6" aria-hidden />
         </KpiCard>
-        <KpiCard label="Collaborateurs actifs" value={stats.status?.actif ?? 0} accent="#10B981">
+        <KpiCard label="Collaborateurs actifs" value={view.status?.actif ?? 0} accent="#10B981">
           <UserCheck className="h-6 w-6" aria-hidden />
         </KpiCard>
-        <KpiCard label="Comptes suspendus" value={stats.status?.suspendu ?? 0} accent="#F59E0B">
+        <KpiCard label="Comptes suspendus" value={view.status?.suspendu ?? 0} accent="#F59E0B">
           <UserX className="h-6 w-6" aria-hidden />
         </KpiCard>
         <KpiCard
           label="Ancienneté moyenne"
-          value={formatDaysAsDuration(stats.ancienneteMoyenne)}
+          value={formatDaysAsDuration(view.ancienneteMoyenne)}
           accent="#7C3AED"
         >
           <Clock className="h-6 w-6" aria-hidden />
@@ -249,7 +286,7 @@ const Dashboard = () => {
           title="Statut des effectifs"
           subtitle="Répartition actifs / suspendus sur l'ensemble des fiches"
         >
-          {stats.total > 0 ? (
+          {view.total > 0 ? (
             <Doughnut data={effectifsData} options={doughnutOptions} />
           ) : (
             <p className="text-sm text-slate-500 flex items-center justify-center h-full">
@@ -285,7 +322,7 @@ const Dashboard = () => {
           title="Pyramide d'ancienneté"
           subtitle="Tranches d'ancienneté des collaborateurs actifs"
         >
-          {(stats.anciennete || []).some((a) => a.count > 0) ? (
+          {(view.anciennete || []).some((a) => a.count > 0) ? (
             <Line data={ancienneteData} options={lineAreaOptions} />
           ) : (
             <p className="text-sm text-slate-500 flex items-center justify-center h-full">

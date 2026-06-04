@@ -62,12 +62,13 @@ const putCollaborateurRules = [
     .withMessage(`Le rôle doit être parmi : ${ROLES_VALIDES.join(', ')}`),
 ];
 
-// Protégées RH uniquement
-router.use(authenticate, authorize('RH'));
+router.use(authenticate);
 
-router.get('/', getAll);
+router.get('/', authorize('RH', 'Manager'), getAll);
+router.get('/:id', authorize('RH', 'Manager'), getById);
+
+router.use(authorize('RH'));
 router.post('/', postCollaborateurRules, validate, create);
-router.get('/:id', getById);
 router.put('/:id', putCollaborateurRules, validate, update);
 router.delete('/:id', remove);
 

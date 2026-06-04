@@ -39,11 +39,24 @@ beforeEach(() => {
 });
 
 describe('Collaborateurs - GET /api/collaborateurs', () => {
-  it('refuse (403) pour un Manager', async () => {
+  it('renvoie 200 et la liste pour Manager (lecture seule)', async () => {
+    const supabase = require('../src/db/supabaseClient');
+    const rows = [{ id: 'collab-2', user_id: 'auth-user-2', nom: 'Martin', prenom: 'Paul', service: 'IT' }];
+
+    const order = jest.fn().mockResolvedValueOnce({ data: rows, error: null });
+    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ order }) });
+
+    const inFn = jest.fn().mockResolvedValueOnce({
+      data: [{ id: 'auth-user-2', role: 'Manager' }],
+      error: null,
+    });
+    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
+
     const app = require('../src/app');
     const res = await request(app).get('/api/collaborateurs').set('x-test-role', 'Manager');
-    expect(res.status).toBe(403);
-    expect(res.body).toHaveProperty('error');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({ nom: 'Martin', service: 'IT' });
   });
 
   it('renvoie 200 et la liste pour RH', async () => {

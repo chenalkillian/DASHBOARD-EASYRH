@@ -26,7 +26,7 @@ const Sidebar = () => {
             <span>Dashboard</span>
           </NavLink>
 
-          {(role === 'RH' || role === 'Manager') && (
+          {role === 'RH' && (
             <NavLink to="/recrutement" className={navLinkClass}>
               <Briefcase className="h-5 w-5" />
               <span>Recrutement</span>
@@ -45,7 +45,7 @@ const Sidebar = () => {
             <span>Congés</span>
           </NavLink>
 
-          {role === 'RH' && (
+          {(role === 'RH' || role === 'Manager') && (
             <NavLink to="/collaborateurs" className={navLinkClass}>
               <Users className="h-5 w-5" />
               <span>Collaborateurs</span>
