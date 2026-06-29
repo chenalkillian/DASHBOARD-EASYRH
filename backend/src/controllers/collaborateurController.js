@@ -160,42 +160,32 @@ const update = async (req, res) => {
   if (error) return res.status(400).json({ error });
 
   if (role !== undefined) {
-    const { data: collab, error: collabErr } = await supabase
-      .from('collaborateurs')
-      .select('user_id')
-      .eq('id', id)
-      .single();
+    const userId = data?.user_id;
 
-    if (collabErr || !collab) {
-      return res.status(404).json({ error: 'Collaborateur non trouvé' });
+    if (!userId) {
+      // Fiche sans compte lié : les champs collaborateur sont enregistrés, le rôle applicatif ne s'applique pas.
+    } else {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileError) return res.status(500).json({ error: profileError.message });
+
+      if (!profile) {
+        return res.status(400).json({
+          error: 'Aucun compte utilisateur lié à cette fiche (impossible de modifier le rôle)',
+        });
+      }
+
+      const { error: roleError } = await supabase
+        .from('profiles')
+        .update({ role })
+        .eq('id', userId);
+
+      if (roleError) return res.status(400).json({ error: roleError.message });
     }
-
-    if (!collab.user_id) {
-      return res.status(400).json({
-        error: 'Aucun compte utilisateur lié à cette fiche (impossible de modifier le rôle)',
-      });
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', collab.user_id)
-      .maybeSingle();
-
-    if (profileError) return res.status(500).json({ error: profileError.message });
-
-    if (!profile) {
-      return res.status(400).json({
-        error: 'Aucun compte utilisateur lié à cette fiche (impossible de modifier le rôle)',
-      });
-    }
-
-    const { error: roleError } = await supabase
-      .from('profiles')
-      .update({ role })
-      .eq('id', collab.user_id);
-
-    if (roleError) return res.status(400).json({ error: roleError.message });
   }
 
   const [enriched] = await enrichWithRoles([data]);

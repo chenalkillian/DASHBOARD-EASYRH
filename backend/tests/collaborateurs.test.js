@@ -187,31 +187,55 @@ describe('Collaborateurs — mutations (RH)', () => {
     expect(res.body.errors).toBeDefined();
   });
 
-  it('PUT /:id met à jour un collaborateur (200)', async () => {
-    const supabase = require('../src/db/supabaseClient');
+    it('PUT /:id met à jour un collaborateur (200)', async () => {
+      const supabase = require('../src/db/supabaseClient');
 
-    const single = jest.fn().mockResolvedValueOnce({
-      data: { id: 'collab-1', user_id: 'auth-user-1', nom: 'Dupont', poste: 'Lead' },
-      error: null,
+      const single = jest.fn().mockResolvedValueOnce({
+        data: { id: 'collab-1', user_id: 'auth-user-1', nom: 'Dupont', poste: 'Lead' },
+        error: null,
+      });
+      const eq = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) });
+      supabase.from.mockReturnValueOnce({ update: jest.fn().mockReturnValue({ eq }) });
+
+      const inFn = jest.fn().mockResolvedValueOnce({
+        data: [{ id: 'auth-user-1', role: 'Collaborateur' }],
+        error: null,
+      });
+      supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
+
+      const app = require('../src/app');
+      const res = await request(app)
+        .put('/api/collaborateurs/collab-1')
+        .set('x-test-role', 'RH')
+        .send({ poste: 'Lead' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.poste).toBe('Lead');
     });
-    const eq = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) });
-    supabase.from.mockReturnValueOnce({ update: jest.fn().mockReturnValue({ eq }) });
 
-    const inFn = jest.fn().mockResolvedValueOnce({
-      data: [{ id: 'auth-user-1', role: 'Collaborateur' }],
-      error: null,
+    it('PUT /:id sans compte lié enregistre la fiche même si role est envoyé (200)', async () => {
+      const supabase = require('../src/db/supabaseClient');
+
+      const single = jest.fn().mockResolvedValueOnce({
+        data: { id: 'collab-2', user_id: null, nom: 'Sans', poste: 'Junior', status: 'Suspendu' },
+        error: null,
+      });
+      const eq = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) });
+      supabase.from.mockReturnValueOnce({ update: jest.fn().mockReturnValue({ eq }) });
+
+      const inFn = jest.fn().mockResolvedValueOnce({ data: [], error: null });
+      supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
+
+      const app = require('../src/app');
+      const res = await request(app)
+        .put('/api/collaborateurs/collab-2')
+        .set('x-test-role', 'RH')
+        .send({ poste: 'Junior', status: 'Suspendu', role: 'Collaborateur' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.poste).toBe('Junior');
+      expect(res.body.status).toBe('Suspendu');
     });
-    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
-
-    const app = require('../src/app');
-    const res = await request(app)
-      .put('/api/collaborateurs/collab-1')
-      .set('x-test-role', 'RH')
-      .send({ poste: 'Lead' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.poste).toBe('Lead');
-  });
 
   it('DELETE /:id supprime (204)', async () => {
     const supabase = require('../src/db/supabaseClient');
@@ -243,16 +267,6 @@ describe('Collaborateurs — mutations (RH)', () => {
       });
       const eq1 = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) });
       supabase.from.mockReturnValueOnce({ update: jest.fn().mockReturnValue({ eq: eq1 }) });
-
-      const collabLookup = jest.fn().mockResolvedValueOnce({
-        data: { user_id: 'auth-user-1' },
-        error: null,
-      });
-      supabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({ single: collabLookup }),
-        }),
-      });
 
       const maybeSingle = jest.fn().mockResolvedValueOnce({ data: { id: 'auth-user-1' }, error: null });
       const eq2 = jest.fn().mockReturnValue({ maybeSingle });

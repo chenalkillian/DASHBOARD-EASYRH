@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { apiFetch } from '../utils/api';
+import PageHeader from '../components/ui/PageHeader';
 
 const DEFAULT_TEMPLATE = [
   { titre: 'Préparer le contrat', categorie: 'RH' },
@@ -196,31 +197,29 @@ const Onboarding = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Onboarding</h1>
-          <p className="text-slate-600">Checklists d’arrivée pour vos nouveaux collaborateurs.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Onboarding"
+        description="Checklists d'arrivée pour vos nouveaux collaborateurs."
+      />
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+        <div className="alert-error" role="alert">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-          <h2 className="font-semibold text-slate-900 mb-3">Collaborateurs</h2>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="card-panel">
+          <h2 className="section-title mb-3">Collaborateurs</h2>
           {loadingCollab ? (
-            <div>Chargement...</div>
+            <div className="text-sm text-slate-500">Chargement...</div>
           ) : (
-            <ul className="space-y-1 max-h-80 overflow-y-auto">
+            <ul className="max-h-80 space-y-1 overflow-y-auto">
               {collaborateurs.map((c) => (
                 <li key={c.id}>
                   <button
                     type="button"
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm ${
+                    className={`min-h-11 w-full rounded-xl px-3 py-2 text-left text-sm ${
                       c.id === selectedId ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'
                     }`}
                     onClick={() => setSelectedId(c.id)}
@@ -235,63 +234,75 @@ const Onboarding = () => {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:col-span-2">
+        <div className="card-panel lg:col-span-2">
           {selectedCollaborateur ? (
             <>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h2 className="font-semibold text-slate-900">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <h2 className="section-title truncate">
                     Checklist • {selectedCollaborateur.nom} {selectedCollaborateur.prenom}
                   </h2>
-                  <p className="text-xs text-slate-500">{selectedCollaborateur.poste} • {selectedCollaborateur.service}</p>
+                  <p className="text-xs text-slate-500 sm:text-sm">
+                    {selectedCollaborateur.poste} • {selectedCollaborateur.service}
+                  </p>
                 </div>
                 <button
                   type="button"
                   disabled={saving || loadingTasks || tasks.length > 0}
                   onClick={handleCreateFromTemplate}
-                  className="text-sm bg-blue-600 text-white px-3 py-2 rounded disabled:opacity-50"
+                  className="btn-primary shrink-0 self-start"
                 >
                   Générer depuis template
                 </button>
               </div>
 
               {loadingTasks ? (
-                <div>Chargement de la checklist...</div>
+                <div className="text-sm text-slate-500">Chargement de la checklist...</div>
               ) : (
                 <>
-                  <ul className="space-y-2 mb-4">
+                  <ul className="mb-4 space-y-2">
                     {tasks.map((t) => (
-                      <li key={t.id} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl">
-                        <label className="flex items-center gap-2 text-sm">
+                      <li
+                        key={t.id}
+                        className="flex flex-col gap-2 rounded-xl bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-2"
+                      >
+                        <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-sm sm:items-center">
                           <input
                             type="checkbox"
                             checked={!!t.termine}
                             onChange={() => toggleDone(t)}
                             disabled={saving}
+                            className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 sm:mt-0"
                           />
-                          <span className={t.termine ? 'line-through text-slate-400' : ''}>{t.titre}</span>
-                          {t.categorie && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                              {t.categorie}
-                            </span>
-                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className={t.termine ? 'line-through text-slate-400' : ''}>{t.titre}</span>
+                            {t.categorie && (
+                              <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700">
+                                {t.categorie}
+                              </span>
+                            )}
+                          </span>
                         </label>
                         <button
                           type="button"
                           onClick={() => deleteTask(t.id)}
                           disabled={saving}
-                          className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                          className="btn-danger self-end px-3 py-2 text-xs sm:self-auto"
                         >
-                          Suppr
+                          Supprimer
                         </button>
                       </li>
                     ))}
-                    {!tasks.length && <li className="text-sm text-slate-500">Aucune tâche. Utilisez le template ou ajoutez une tâche.</li>}
+                    {!tasks.length && (
+                      <li className="text-sm text-slate-500">
+                        Aucune tâche. Utilisez le template ou ajoutez une tâche.
+                      </li>
+                    )}
                   </ul>
 
-                  <form onSubmit={handleAddTask} className="flex gap-2">
+                  <form onSubmit={handleAddTask} className="flex flex-col gap-2 sm:flex-row">
                     <input
-                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                      className="input-field flex-1"
                       placeholder="Ajouter une tâche personnalisée"
                       value={newTaskTitre}
                       onChange={(e) => setNewTaskTitre(e.target.value)}
@@ -299,7 +310,7 @@ const Onboarding = () => {
                     <button
                       type="submit"
                       disabled={saving || !newTaskTitre.trim()}
-                      className="bg-slate-900 text-white px-3 py-2 rounded-xl text-sm disabled:opacity-50"
+                      className="btn-secondary sm:shrink-0"
                     >
                       Ajouter
                     </button>
@@ -308,7 +319,9 @@ const Onboarding = () => {
               )}
             </>
           ) : (
-            <div className="text-sm text-slate-500">Sélectionnez un collaborateur pour gérer son onboarding.</div>
+            <div className="text-sm text-slate-500">
+              Sélectionnez un collaborateur pour gérer son onboarding.
+            </div>
           )}
         </div>
       </div>
