@@ -29,96 +29,84 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard RH</h1>
-          <p className="text-gray-500">Connectez-vous pour accéder</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6" aria-busy={loading}>
-          {errorMessage && (
-            <div
-              role="alert"
-              aria-live="polite"
-              className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg"
-            >
-              {errorMessage}
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                id="login-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="rh@entreprise.com"
-                autoComplete="email"
-                required
-              />
-            </div>
+    <div className="min-h-dvh overflow-y-auto bg-gradient-to-br from-blue-500 to-purple-600 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-6 sm:py-8">
+      <div className="mx-auto flex min-h-full max-w-md items-center justify-center">
+        <div className="w-full space-y-6 rounded-2xl bg-white p-6 shadow-2xl sm:space-y-8 sm:p-8">
+          <div className="text-center">
+            <h1 className="mb-2 text-2xl font-bold text-gray-900 sm:text-4xl">Dashboard RH</h1>
+            <p className="text-sm text-gray-500 sm:text-base">Connectez-vous pour accéder</p>
           </div>
 
-          <div>
-            <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-2">
-              Mot de passe
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                id="login-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="••••••••"
-                autoComplete="current-password"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 hover:bg-blue-700 disabled:opacity-50 transition-all"
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Connexion...</span>
-              </>
-            ) : (
-              <>
-                <span>Se connecter</span>
-                <ArrowRight className="h-5 w-5" />
-              </>
+          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6" aria-busy={loading}>
+            {errorMessage && (
+              <div role="alert" aria-live="polite" className="alert-error">
+                {errorMessage}
+              </div>
             )}
-          </button>
-        </form>
 
-        <div className="flex items-center justify-between text-sm">
-          <Link to="/forgot-password" className="text-blue-600 hover:underline font-medium">
-            Mot de passe oublié ?
-          </Link>
-          <Link to="/register" className="text-blue-600 hover:underline font-medium">
-            Créer un compte
-          </Link>
-        </div>
+            <div>
+              <label htmlFor="login-email" className="label-field">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-field pl-10 text-base"
+                  placeholder="rh@entreprise.com"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+            </div>
 
-        <div className="text-center">
-          <p className="text-sm text-gray-500">
-            Test: <br />
-            Email: killian.test+rh@outlook.com <br />
-            MDP: Test1234!
-          </p>
+            <div>
+              <label htmlFor="login-password" className="label-field">
+                Mot de passe
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  id="login-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-field pl-10 text-base"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading} className="btn-primary w-full">
+              {loading ? (
+                <>
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span>Connexion...</span>
+                </>
+              ) : (
+                <>
+                  <span>Se connecter</span>
+                  <ArrowRight className="h-5 w-5" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <Link to="/forgot-password" className="min-h-11 font-medium text-blue-600 hover:underline">
+              Mot de passe oublié ?
+            </Link>
+            <Link to="/register" className="min-h-11 font-medium text-blue-600 hover:underline sm:text-right">
+              Créer un compte
+            </Link>
+          </div>
+
+          
         </div>
       </div>
     </div>

@@ -20,6 +20,7 @@ const Collaborateurs = () => {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null);
+  const [editingHasAccount, setEditingHasAccount] = useState(false);
   const [form, setForm] = useState({
     nom: '',
     prenom: '',
@@ -81,6 +82,7 @@ const Collaborateurs = () => {
       password: '',
     });
     setEditingId(null);
+    setEditingHasAccount(false);
   };
 
   const handleSubmit = async (e) => {
@@ -94,7 +96,7 @@ const Collaborateurs = () => {
       salaire: form.salaire === '' ? null : Number(form.salaire),
     };
 
-    if (editingId && isRh) {
+    if (editingId && isRh && editingHasAccount) {
       payload.role = role;
     } else if (!editingId) {
       payload.email = email;
@@ -131,6 +133,7 @@ const Collaborateurs = () => {
 
   const handleEdit = (c) => {
     setEditingId(c.id);
+    setEditingHasAccount(!!c.has_account);
     setError('');
     setForm({
       nom: c.nom || '',
@@ -342,23 +345,30 @@ const Collaborateurs = () => {
               </div>
             </>
           )}
-          {editingId && (
-  <div>
-    <label className="label-field" htmlFor="collab-role">
-      Rôle applicatif
-    </label>
-    <select
-      id="collab-role"
-      className="input-field"
-      value={form.role}
-      onChange={(e) => setForm({ ...form, role: e.target.value })}
-    >
-      {ROLES.map((r) => (
-        <option key={r} value={r}>{r}</option>
-      ))}
-    </select>
-  </div>
-)}
+          {editingId && editingHasAccount && (
+            <div>
+              <label className="label-field" htmlFor="collab-role">
+                Rôle applicatif
+              </label>
+              <select
+                id="collab-role"
+                className="input-field"
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {editingId && !editingHasAccount && (
+            <div className="md:col-span-3">
+              <p className="text-sm text-slate-500">
+                Aucun compte de connexion lié — le rôle applicatif ne peut pas être modifié.
+              </p>
+            </div>
+          )}
           <div>
             <label className="label-field" htmlFor="collab-contrat">
               Contrat
