@@ -88,7 +88,10 @@ const Collaborateurs = () => {
 
   useEffect(() => {
     if (!isRh || editingId) return;
-    fetchUtilisateursInscrits();
+    const timer = setTimeout(() => {
+      fetchUtilisateursInscrits();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [isRh, editingId, fetchUtilisateursInscrits]);
 
   const resetForm = () => {
