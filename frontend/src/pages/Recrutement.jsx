@@ -18,7 +18,6 @@ const emptyForm = {
   date_candidature: '',
   notes: '',
 };
-
 const toDateInputValue = (value) => {
   if (!value) return '';
   if (typeof value === 'string') return value.slice(0, 10);
@@ -46,11 +45,11 @@ const Recrutement = () => {
   const { user } = useAuth();
   const role = user?.role || 'Collaborateur';
   const formRef = useRef(null);
+  const [exportingFormat, setExportingFormat] = useState(null);
 
   const [candidats, setCandidats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
 
   const [filterStatut, setFilterStatut] = useState('');
@@ -90,31 +89,37 @@ const Recrutement = () => {
     }
   };
 
-  const downloadFile = async (path, filename) => {
-    setExporting(true);
-    setError('');
-    try {
-      const res = await apiFetch(path);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const msg = data?.error || 'Erreur export';
-        throw new Error(msg);
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setExporting(false);
+const downloadFile = async (path, filename, format) => {
+  setExportingFormat(format);
+  setError('');
+  try {
+    const res = await apiFetch(path);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = data?.error?.message || data?.error || 'Erreur export';
+      throw new Error(msg);
     }
-  };
+    const blob = await res.blob();
+    if (blob.size === 0) throw new Error('Le fichier exporté est vide');
+
+    const disposition = res.headers.get('Content-Disposition');
+    const match = disposition?.match(/filename="?([^"]+)"?/);
+    const finalFilename = match?.[1] || filename;
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = finalFilename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (e) {
+    setError(e.message);
+  } finally {
+    setExportingFormat(null);
+  }
+};
 
   useEffect(() => {
     if (!user || !canAccess) return;
@@ -227,22 +232,22 @@ const Recrutement = () => {
         description="Suivi des candidats, statuts et pipeline."
         actions={
           <>
-            <button
-              type="button"
-              disabled={exporting || saving}
-              onClick={() => downloadFile('/api/exports/recrutement.xlsx', 'recrutement.xlsx')}
-              className="btn-secondary"
-            >
-              {exporting ? 'Export…' : 'Excel'}
-            </button>
-            <button
-              type="button"
-              disabled={exporting || saving}
-              onClick={() => downloadFile('/api/exports/recrutement.pdf', 'recrutement.pdf')}
-              className="btn-secondary"
-            >
-              {exporting ? 'Export…' : 'PDF'}
-            </button>
+                  <button
+          type="button"
+          disabled={exportingFormat !== null || saving}
+          onClick={() => downloadFile('/api/exports/recrutement.xlsx', 'recrutement.xlsx', 'xlsx')}
+          className="btn-secondary"
+        >
+          {exportingFormat === 'xlsx' ? 'Export…' : 'Excel'}
+        </button>
+        <button
+          type="button"
+          disabled={exportingFormat !== null || saving}
+          onClick={() => downloadFile('/api/exports/recrutement.pdf', 'recrutement.pdf', 'pdf')}
+          className="btn-secondary"
+        >
+          {exportingFormat === 'pdf' ? 'Export…' : 'PDF'}
+        </button>
             <select
               className="input-field w-auto min-w-[10rem]"
               value={filterStatut}
