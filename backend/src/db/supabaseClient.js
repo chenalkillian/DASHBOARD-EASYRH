@@ -1,6 +1,6 @@
 // src/db/supabaseClient.js
+require('./applyDevTls');
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
 
 // Service role : tables + supabase.auth.admin (createUser, deleteUser)
 const supabase = createClient(

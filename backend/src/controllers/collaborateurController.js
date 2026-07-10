@@ -4,28 +4,37 @@ const ROLES_VALIDES = ['RH', 'Manager', 'Collaborateur'];
 
 const buildFullname = (nom, prenom) => `${prenom} ${nom}`.trim();
 
-const isCompteExistant = (value) => value === true || value === 'true';
+const splitFullName = (fullName) => {
+  const trimmed = (fullName || '').trim();
+  if (!trimmed) return { prenom: '', nom: '' };
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) return { prenom: parts[0], nom: '' };
+  return { prenom: parts[0], nom: parts.slice(1).join(' ') };
+};
 
-/** Recherche un profil existant via auth.users.email → profiles.id */
-const findUserIdByEmail = async (email) => {
-  const { data: authUser, error: authError } = await supabase
-    .schema('auth')
-    .from('users')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
+/** Liste tous les utilisateurs Auth via l'API Admin (service_role). */
+const fetchAllAuthUsers = async () => {
+  const users = [];
+  let page = 1;
+  const perPage = 1000;
 
-  if (authError || !authUser?.id) return null;
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const batch = data?.users ?? [];
+    users.push(...batch);
+    if (batch.length < perPage) break;
+    page += 1;
+  }
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('id', authUser.id)
-    .maybeSingle();
+  return users;
+};
 
-  if (profileError || !profile?.id) return null;
-
-  return profile.id;
+/** Récupère un utilisateur Auth par id (API Admin, pas de requête sur auth.users). */
+const findAuthUserById = async (userId) => {
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  if (error || !data?.user) return null;
+  return data.user;
 };
 
 /** Ajoute role et has_account via collaborateurs.user_id → profiles.id */
@@ -52,6 +61,62 @@ const enrichWithRoles = async (collaborateurs) => {
   }));
 };
 
+/** Utilisateurs Supabase Auth sans fiche collaborateur liée (RH). */
+const getUtilisateursInscrits = async (req, res) => {
+  try {
+    const { data: collaborateurs, error: collabError } = await supabase
+      .from('collaborateurs')
+      .select('user_id');
+
+    if (collabError) {
+      return res.status(500).json({ error: collabError.message ?? collabError });
+    }
+
+    const linkedIds = new Set(
+      (collaborateurs || []).map((c) => c.user_id).filter(Boolean),
+    );
+
+    const authUsers = await fetchAllAuthUsers();
+
+    const authUserIds = authUsers.map((u) => u.id);
+    let profileById = new Map();
+    if (authUserIds.length) {
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .in('id', authUserIds);
+
+      if (profileError) {
+        return res.status(500).json({ error: profileError.message });
+      }
+      profileById = new Map((profiles || []).map((p) => [p.id, p]));
+    }
+
+    const disponibles = authUsers
+      .filter((u) => !linkedIds.has(u.id))
+      .map((u) => {
+        const profile = profileById.get(u.id);
+        const fullName =
+          profile?.full_name || u.user_metadata?.full_name || u.email?.split('@')[0] || '';
+        const { prenom, nom } = splitFullName(fullName);
+        return {
+          id: u.id,
+          email: u.email,
+          full_name: fullName,
+          prenom,
+          nom,
+          role: profile?.role ?? null,
+        };
+      })
+      .sort((a, b) => (a.email || '').localeCompare(b.email || ''));
+
+    res.json(disponibles);
+  } catch (err) {
+    console.error('[collaborateurs] getUtilisateursInscrits:', err.message);
+    return res.status(500).json({ error: 'Impossible de charger les utilisateurs inscrits' });
+  }
+};
+
 const getAll = async (req, res) => {
   const { data, error } = await supabase
     .from('collaborateurs')
@@ -64,9 +129,10 @@ const getAll = async (req, res) => {
 
 const create = async (req, res) => {
   const {
-    email,
-    password,
-    compteExistant,
+    user_id: bodyUserId,
+    email: _email,
+    password: _password,
+    compteExistant: _compteExistant,
     nom,
     prenom,
     poste,
@@ -76,11 +142,34 @@ const create = async (req, res) => {
     contrat,
     status,
     role: _role,
-    user_id: _userId,
     ...rest
   } = req.body;
 
-  const linkExisting = isCompteExistant(compteExistant);
+  if (!bodyUserId) {
+    return res.status(400).json({
+      error: 'Sélectionnez un utilisateur inscrit pour créer la fiche collaborateur',
+    });
+  }
+
+  const authUser = await findAuthUserById(bodyUserId);
+  if (!authUser) {
+    return res.status(404).json({ error: 'Utilisateur introuvable dans Supabase Auth' });
+  }
+
+  const { data: dejaLie, error: checkError } = await supabase
+    .from('collaborateurs')
+    .select('id')
+    .eq('user_id', bodyUserId)
+    .maybeSingle();
+
+  if (checkError) {
+    return res.status(500).json({ error: checkError.message });
+  }
+  if (dejaLie) {
+    return res.status(400).json({
+      error: 'Cet utilisateur est déjà lié à une fiche collaborateur',
+    });
+  }
 
   const collabPayload = {
     nom,
@@ -91,49 +180,11 @@ const create = async (req, res) => {
     salaire,
     contrat,
     status: status ?? 'Actif',
-    email: email ?? null,
+    email: authUser.email,
+    user_id: bodyUserId,
     created_by: req.user.id,
     ...rest,
   };
-
-  if (linkExisting) {
-    const userId = await findUserIdByEmail(email);
-    if (!userId) {
-      return res.status(404).json({ error: 'Aucun compte trouvé avec cet email' });
-    }
-
-    collabPayload.user_id = userId;
-
-    const { data: collab, error: insertError } = await supabase
-      .from('collaborateurs')
-      .insert([collabPayload])
-      .select()
-      .single();
-
-    if (insertError) {
-      return res.status(400).json({ error: insertError.message ?? insertError });
-    }
-
-    const [enriched] = await enrichWithRoles([collab]);
-    return res.status(201).json(enriched);
-  }
-
-  if (!password) {
-    collabPayload.user_id = null;
-
-    const { data: collab, error: insertError } = await supabase
-      .from('collaborateurs')
-      .insert([collabPayload])
-      .select()
-      .single();
-
-    if (insertError) {
-      return res.status(400).json({ error: insertError.message ?? insertError });
-    }
-
-    const [enriched] = await enrichWithRoles([collab]);
-    return res.status(201).json(enriched);
-  }
 
   const { data: collab, error: insertError } = await supabase
     .from('collaborateurs')
@@ -145,53 +196,7 @@ const create = async (req, res) => {
     return res.status(400).json({ error: insertError.message ?? insertError });
   }
 
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: buildFullname(nom, prenom) },
-  });
-
-  if (authError || !authData?.user) {
-    await supabase.from('collaborateurs').delete().eq('id', collab.id);
-    return res.status(400).json({
-      error: authError?.message ?? 'Échec de la création du compte utilisateur',
-    });
-  }
-
-  const userId = authData.user.id;
-
-  // Le trigger Supabase (on_auth_user_created) crée souvent déjà la ligne profiles → upsert
-  const { error: profileError } = await supabase.from('profiles').upsert(
-    {
-      id: userId,
-      full_name: buildFullname(nom, prenom),
-      role: 'Collaborateur',
-    },
-    { onConflict: 'id' },
-  );
-
-  if (profileError) {
-    await supabase.auth.admin.deleteUser(userId);
-    await supabase.from('collaborateurs').delete().eq('id', collab.id);
-    return res.status(400).json({ error: profileError.message });
-  }
-
-  const { data: linked, error: linkError } = await supabase
-    .from('collaborateurs')
-    .update({ user_id: userId })
-    .eq('id', collab.id)
-    .select()
-    .single();
-
-  if (linkError) {
-    await supabase.auth.admin.deleteUser(userId);
-    await supabase.from('profiles').delete().eq('id', userId);
-    await supabase.from('collaborateurs').delete().eq('id', collab.id);
-    return res.status(400).json({ error: linkError.message });
-  }
-
-  const [enriched] = await enrichWithRoles([linked]);
+  const [enriched] = await enrichWithRoles([collab]);
   res.status(201).json(enriched);
 };
 
@@ -210,7 +215,14 @@ const getById = async (req, res) => {
 
 const update = async (req, res) => {
   const { id } = req.params;
-  const { role, email: _email, password: _password, user_id: _userId, ...collabFields } = req.body;
+  const {
+    role,
+    email: _email,
+    password: _password,
+    user_id: _userId,
+    compteExistant: _compteExistant,
+    ...collabFields
+  } = req.body;
 
   if (role !== undefined && !ROLES_VALIDES.includes(role)) {
     return res.status(400).json({ error: 'Rôle invalide' });
@@ -270,11 +282,13 @@ const remove = async (req, res) => {
 
 module.exports = {
   getAll,
+  getUtilisateursInscrits,
   create,
   getById,
   update,
   remove,
   enrichWithRoles,
-  findUserIdByEmail,
-  isCompteExistant,
+  splitFullName,
+  findAuthUserById,
+  fetchAllAuthUsers,
 };
