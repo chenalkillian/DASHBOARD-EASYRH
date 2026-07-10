@@ -20,6 +20,7 @@ const Collaborateurs = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState(null)
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editingHasAccount, setEditingHasAccount] = useState(false);
@@ -37,7 +38,6 @@ const Collaborateurs = () => {
     email: '',
   });
   const ROLES = ['RH', 'Manager', 'Collaborateur'];
-const [exportingFormat, setExportingFormat] = useState(null);
   const fetchCollaborateurs = useCallback(async () => {
     setLoading(true);
     setError('');

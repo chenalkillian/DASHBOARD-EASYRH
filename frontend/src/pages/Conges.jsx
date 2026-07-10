@@ -8,7 +8,6 @@ import LoadingState from '../components/ui/LoadingState';
 
 const TYPES = ['Congés payés', 'RTT', 'Maladie', 'Sans solde'];
 const STATUTS = ['', 'En attente', 'Approuvé', 'Refusé'];
-const [exportingFormat, setExportingFormat] = useState(null);
 const toDateInputValue = (value) => {
   if (!value) return '';
   if (typeof value === 'string') return value.slice(0, 10);
@@ -45,6 +44,8 @@ const Conges = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [filterStatut, setFilterStatut] = useState('');
+  const [exportingFormat, setExportingFormat] = useState(null);
+
 
   const [form, setForm] = useState({
     type: 'Congés payés',

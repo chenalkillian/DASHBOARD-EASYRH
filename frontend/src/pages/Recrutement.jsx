@@ -18,7 +18,6 @@ const emptyForm = {
   date_candidature: '',
   notes: '',
 };
-const [exportingFormat, setExportingFormat] = useState(null);
 const toDateInputValue = (value) => {
   if (!value) return '';
   if (typeof value === 'string') return value.slice(0, 10);
@@ -46,6 +45,7 @@ const Recrutement = () => {
   const { user } = useAuth();
   const role = user?.role || 'Collaborateur';
   const formRef = useRef(null);
+  const [exportingFormat, setExportingFormat] = useState(null);
 
   const [candidats, setCandidats] = useState([]);
   const [loading, setLoading] = useState(true);
