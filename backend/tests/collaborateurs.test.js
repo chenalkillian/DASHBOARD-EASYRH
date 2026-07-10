@@ -1,7 +1,7 @@
 const request = require('supertest');
 
-const mockCreateUser = jest.fn();
-const mockDeleteUser = jest.fn();
+const mockListUsers = jest.fn();
+const mockGetUserById = jest.fn();
 
 jest.mock('../src/middleware/authMiddleware', () => ({
   authenticate: (req, _res, next) => {
@@ -18,28 +18,27 @@ jest.mock('../src/middleware/authMiddleware', () => ({
 
 jest.mock('../src/db/supabaseClient', () => ({
   from: jest.fn(),
-  schema: jest.fn(),
   auth: {
     admin: {
-      createUser: (...args) => mockCreateUser(...args),
-      deleteUser: (...args) => mockDeleteUser(...args),
+      listUsers: (...args) => mockListUsers(...args),
+      getUserById: (...args) => mockGetUserById(...args),
     },
   },
 }));
 
-const mockSchemaFrom = jest.fn();
+const USER_ID = '11111111-1111-4111-8111-111111111111';
 
 beforeEach(() => {
   const supabase = require('../src/db/supabaseClient');
   supabase.from.mockReset();
-  supabase.schema.mockReset();
-  supabase.schema.mockReturnValue({ from: mockSchemaFrom });
-  mockSchemaFrom.mockReset();
-  mockCreateUser.mockReset();
-  mockDeleteUser.mockReset();
-  mockDeleteUser.mockResolvedValue({ error: null });
-  mockCreateUser.mockResolvedValue({
-    data: { user: { id: 'auth-user-1' } },
+  mockListUsers.mockReset();
+  mockGetUserById.mockReset();
+  mockListUsers.mockResolvedValue({
+    data: { users: [] },
+    error: null,
+  });
+  mockGetUserById.mockResolvedValue({
+    data: { user: { id: USER_ID, email: 'claire@corp.com' } },
     error: null,
   });
 });
@@ -86,136 +85,83 @@ describe('Collaborateurs - GET /api/collaborateurs', () => {
   });
 });
 
-describe('Collaborateurs — mutations (RH)', () => {
-  const validBody = {
-    nom: 'Martin',
-    prenom: 'Claire',
-    poste: 'Dev',
-    service: 'IT',
-    contrat: 'CDI',
-    date_embauche: '2025-01-01',
-    email: 'claire@corp.com',
-    password: 'secret12',
-  };
-
-  it('POST / crée collaborateur + compte Auth + profil (201)', async () => {
+describe('Collaborateurs - GET /api/collaborateurs/utilisateurs-inscrits', () => {
+  it('renvoie les utilisateurs Auth sans fiche liée (200)', async () => {
     const supabase = require('../src/db/supabaseClient');
 
-    const collabInserted = { id: 'collab-new', nom: 'Martin', prenom: 'Claire' };
-    const collabLinked = { ...collabInserted, user_id: 'auth-user-1', email: 'claire@corp.com' };
-
     supabase.from.mockReturnValueOnce({
-      insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValueOnce({ data: collabInserted, error: null }),
-        }),
+      select: jest.fn().mockResolvedValueOnce({
+        data: [{ user_id: 'auth-user-linked' }],
+        error: null,
       }),
     });
 
-    supabase.from.mockReturnValueOnce({
-      upsert: jest.fn().mockResolvedValueOnce({ error: null }),
-    });
-
-    const linkSingle = jest.fn().mockResolvedValueOnce({ data: collabLinked, error: null });
-    supabase.from.mockReturnValueOnce({
-      update: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({ single: linkSingle }),
-        }),
-      }),
+    mockListUsers.mockResolvedValueOnce({
+      data: {
+        users: [
+          { id: 'auth-user-linked', email: 'lie@corp.com', user_metadata: { full_name: 'Lie User' } },
+          { id: USER_ID, email: 'claire@corp.com', user_metadata: { full_name: 'Claire Martin' } },
+        ],
+      },
+      error: null,
     });
 
     const inFn = jest.fn().mockResolvedValueOnce({
-      data: [{ id: 'auth-user-1', role: 'Collaborateur' }],
+      data: [
+        { id: 'auth-user-linked', full_name: 'Lie User', role: 'Collaborateur' },
+        { id: USER_ID, full_name: 'Claire Martin', role: 'Collaborateur' },
+      ],
       error: null,
     });
     supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
 
     const app = require('../src/app');
     const res = await request(app)
-      .post('/api/collaborateurs')
-      .set('x-test-role', 'RH')
-      .send(validBody);
+      .get('/api/collaborateurs/utilisateurs-inscrits')
+      .set('x-test-role', 'RH');
 
-    expect(res.status).toBe(201);
-    expect(mockCreateUser).toHaveBeenCalledWith(
-      expect.objectContaining({ email: 'claire@corp.com', email_confirm: true }),
-    );
-    expect(res.body).toMatchObject({
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({
+      id: USER_ID,
+      email: 'claire@corp.com',
+      prenom: 'Claire',
       nom: 'Martin',
-      user_id: 'auth-user-1',
-      role: 'Collaborateur',
     });
   });
 
-  it('POST / rollback collaborateur si createUser échoue', async () => {
-    const supabase = require('../src/db/supabaseClient');
-    mockCreateUser.mockResolvedValueOnce({
-      data: null,
-      error: { message: 'User already registered' },
-    });
-
-    supabase.from.mockReturnValueOnce({
-      insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValueOnce({
-            data: { id: 'collab-new' },
-            error: null,
-          }),
-        }),
-      }),
-    });
-
-    supabase.from.mockReturnValueOnce({
-      delete: jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValueOnce({ error: null }),
-      }),
-    });
-
+  it('retourne 403 pour un Manager', async () => {
     const app = require('../src/app');
     const res = await request(app)
-      .post('/api/collaborateurs')
-      .set('x-test-role', 'RH')
-      .send(validBody);
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/already registered|compte utilisateur/i);
+      .get('/api/collaborateurs/utilisateurs-inscrits')
+      .set('x-test-role', 'Manager');
+    expect(res.status).toBe(403);
   });
+});
 
-  it('POST / sans email valide retourne 400', async () => {
-    const app = require('../src/app');
-    const res = await request(app)
-      .post('/api/collaborateurs')
-      .set('x-test-role', 'RH')
-      .send({ ...validBody, email: 'pas-un-email' });
+describe('Collaborateurs — mutations (RH)', () => {
+  const validBody = {
+    user_id: USER_ID,
+    nom: 'Martin',
+    prenom: 'Claire',
+    poste: 'Dev',
+    service: 'IT',
+    contrat: 'CDI',
+    date_embauche: '2025-01-01',
+  };
 
-    expect(res.status).toBe(400);
-    expect(res.body.errors).toBeDefined();
-  });
-
-  it('POST / avec compteExistant=true lie un compte existant (201)', async () => {
+  it('POST / lie un utilisateur inscrit existant (201)', async () => {
     const supabase = require('../src/db/supabaseClient');
 
-    const authMaybeSingle = jest.fn().mockResolvedValueOnce({
-      data: { id: 'auth-user-existing' },
-      error: null,
-    });
-    const authEq = jest.fn().mockReturnValue({ maybeSingle: authMaybeSingle });
-    const authSelect = jest.fn().mockReturnValue({ eq: authEq });
-    mockSchemaFrom.mockReturnValueOnce({ select: authSelect });
-
-    const profileMaybeSingle = jest.fn().mockResolvedValueOnce({
-      data: { id: 'auth-user-existing' },
-      error: null,
-    });
-    const profileEq = jest.fn().mockReturnValue({ maybeSingle: profileMaybeSingle });
-    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ eq: profileEq }) });
+    const maybeSingleCheck = jest.fn().mockResolvedValueOnce({ data: null, error: null });
+    const eqCheck = jest.fn().mockReturnValue({ maybeSingle: maybeSingleCheck });
+    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ eq: eqCheck }) });
 
     const collabLinked = {
-      id: 'collab-linked',
+      id: 'collab-new',
       nom: 'Martin',
       prenom: 'Claire',
-      user_id: 'auth-user-existing',
+      user_id: USER_ID,
       email: 'claire@corp.com',
     };
     supabase.from.mockReturnValueOnce({
@@ -227,7 +173,7 @@ describe('Collaborateurs — mutations (RH)', () => {
     });
 
     const inFn = jest.fn().mockResolvedValueOnce({
-      data: [{ id: 'auth-user-existing', role: 'Collaborateur' }],
+      data: [{ id: USER_ID, role: 'Collaborateur' }],
       error: null,
     });
     supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
@@ -236,94 +182,110 @@ describe('Collaborateurs — mutations (RH)', () => {
     const res = await request(app)
       .post('/api/collaborateurs')
       .set('x-test-role', 'RH')
-      .send({
-        ...validBody,
-        compteExistant: true,
-        password: undefined,
-      });
+      .send(validBody);
 
     expect(res.status).toBe(201);
-    expect(mockCreateUser).not.toHaveBeenCalled();
+    expect(mockGetUserById).toHaveBeenCalledWith(USER_ID);
     expect(res.body).toMatchObject({
-      user_id: 'auth-user-existing',
+      nom: 'Martin',
+      user_id: USER_ID,
       has_account: true,
     });
   });
 
-  it('POST / avec compteExistant=true et email inconnu retourne 404', async () => {
-    const authMaybeSingle = jest.fn().mockResolvedValueOnce({
-      data: null,
-      error: null,
-    });
-    const authEq = jest.fn().mockReturnValue({ maybeSingle: authMaybeSingle });
-    const authSelect = jest.fn().mockReturnValue({ eq: authEq });
-    mockSchemaFrom.mockReturnValueOnce({ select: authSelect });
+  it('POST / sans user_id retourne 400', async () => {
+    const app = require('../src/app');
+    const { user_id: _removed, ...bodySansUser } = validBody;
+    const res = await request(app)
+      .post('/api/collaborateurs')
+      .set('x-test-role', 'RH')
+      .send(bodySansUser);
+
+    expect(res.status).toBe(400);
+    expect(res.body.errors).toBeDefined();
+  });
+
+  it('POST / avec user_id inconnu retourne 404', async () => {
+    mockGetUserById.mockResolvedValueOnce({ data: { user: null }, error: null });
 
     const app = require('../src/app');
     const res = await request(app)
       .post('/api/collaborateurs')
       .set('x-test-role', 'RH')
-      .send({
-        ...validBody,
-        compteExistant: true,
-        email: 'inconnu@corp.com',
-        password: undefined,
-      });
+      .send(validBody);
 
     expect(res.status).toBe(404);
-    expect(res.body.error).toBe('Aucun compte trouvé avec cet email');
-    expect(mockCreateUser).not.toHaveBeenCalled();
+    expect(res.body.error).toBe('Utilisateur introuvable dans Supabase Auth');
   });
 
-    it('PUT /:id met à jour un collaborateur (200)', async () => {
-      const supabase = require('../src/db/supabaseClient');
-
-      const single = jest.fn().mockResolvedValueOnce({
-        data: { id: 'collab-1', user_id: 'auth-user-1', nom: 'Dupont', poste: 'Lead' },
-        error: null,
-      });
-      const eq = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) });
-      supabase.from.mockReturnValueOnce({ update: jest.fn().mockReturnValue({ eq }) });
-
-      const inFn = jest.fn().mockResolvedValueOnce({
-        data: [{ id: 'auth-user-1', role: 'Collaborateur' }],
-        error: null,
-      });
-      supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
-
-      const app = require('../src/app');
-      const res = await request(app)
-        .put('/api/collaborateurs/collab-1')
-        .set('x-test-role', 'RH')
-        .send({ poste: 'Lead' });
-
-      expect(res.status).toBe(200);
-      expect(res.body.poste).toBe('Lead');
+  it('POST / avec user_id déjà lié retourne 400', async () => {
+    const supabase = require('../src/db/supabaseClient');
+    const maybeSingleCheck = jest.fn().mockResolvedValueOnce({
+      data: { id: 'collab-existing' },
+      error: null,
     });
+    const eqCheck = jest.fn().mockReturnValue({ maybeSingle: maybeSingleCheck });
+    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ eq: eqCheck }) });
 
-    it('PUT /:id sans compte lié enregistre la fiche même si role est envoyé (200)', async () => {
-      const supabase = require('../src/db/supabaseClient');
+    const app = require('../src/app');
+    const res = await request(app)
+      .post('/api/collaborateurs')
+      .set('x-test-role', 'RH')
+      .send(validBody);
 
-      const single = jest.fn().mockResolvedValueOnce({
-        data: { id: 'collab-2', user_id: null, nom: 'Sans', poste: 'Junior', status: 'Suspendu' },
-        error: null,
-      });
-      const eq = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) });
-      supabase.from.mockReturnValueOnce({ update: jest.fn().mockReturnValue({ eq }) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/déjà lié/i);
+  });
 
-      const inFn = jest.fn().mockResolvedValueOnce({ data: [], error: null });
-      supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
+  it('PUT /:id met à jour un collaborateur (200)', async () => {
+    const supabase = require('../src/db/supabaseClient');
 
-      const app = require('../src/app');
-      const res = await request(app)
-        .put('/api/collaborateurs/collab-2')
-        .set('x-test-role', 'RH')
-        .send({ poste: 'Junior', status: 'Suspendu', role: 'Collaborateur' });
-
-      expect(res.status).toBe(200);
-      expect(res.body.poste).toBe('Junior');
-      expect(res.body.status).toBe('Suspendu');
+    const single = jest.fn().mockResolvedValueOnce({
+      data: { id: 'collab-1', user_id: 'auth-user-1', nom: 'Dupont', poste: 'Lead' },
+      error: null,
     });
+    const eq = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) });
+    supabase.from.mockReturnValueOnce({ update: jest.fn().mockReturnValue({ eq }) });
+
+    const inFn = jest.fn().mockResolvedValueOnce({
+      data: [{ id: 'auth-user-1', role: 'Collaborateur' }],
+      error: null,
+    });
+    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
+
+    const app = require('../src/app');
+    const res = await request(app)
+      .put('/api/collaborateurs/collab-1')
+      .set('x-test-role', 'RH')
+      .send({ poste: 'Lead' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.poste).toBe('Lead');
+  });
+
+  it('PUT /:id sans compte lié enregistre la fiche même si role est envoyé (200)', async () => {
+    const supabase = require('../src/db/supabaseClient');
+
+    const single = jest.fn().mockResolvedValueOnce({
+      data: { id: 'collab-2', user_id: null, nom: 'Sans', poste: 'Junior', status: 'Suspendu' },
+      error: null,
+    });
+    const eq = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) });
+    supabase.from.mockReturnValueOnce({ update: jest.fn().mockReturnValue({ eq }) });
+
+    const inFn = jest.fn().mockResolvedValueOnce({ data: [], error: null });
+    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
+
+    const app = require('../src/app');
+    const res = await request(app)
+      .put('/api/collaborateurs/collab-2')
+      .set('x-test-role', 'RH')
+      .send({ poste: 'Junior', status: 'Suspendu', role: 'Collaborateur' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.poste).toBe('Junior');
+    expect(res.body.status).toBe('Suspendu');
+  });
 
   it('DELETE /:id supprime (204)', async () => {
     const supabase = require('../src/db/supabaseClient');
@@ -355,17 +317,12 @@ describe('Collaborateurs — mutations (RH)', () => {
     expect(res.body.error).toBe('Accès refusé');
   });
 
-  it('POST / retourne 403 pour un Collaborateur (compteExistant ne doit pas exposer la 404)', async () => {
+  it('POST / retourne 403 pour un Collaborateur', async () => {
     const app = require('../src/app');
     const res = await request(app)
       .post('/api/collaborateurs')
       .set('x-test-role', 'Collaborateur')
-      .send({
-        ...validBody,
-        compteExistant: true,
-        email: 'cible@corp.com',
-        password: undefined,
-      });
+      .send(validBody);
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('Accès refusé');
   });

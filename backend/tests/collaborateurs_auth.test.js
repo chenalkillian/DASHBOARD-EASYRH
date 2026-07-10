@@ -9,6 +9,8 @@ jest.mock('../src/db/supabaseClient', () => ({
     signUp: jest.fn(),
     signInWithPassword: jest.fn(),
     admin: {
+      listUsers: jest.fn(),
+      getUserById: jest.fn(),
       createUser: jest.fn(),
       deleteUser: jest.fn(),
     },
@@ -16,14 +18,13 @@ jest.mock('../src/db/supabaseClient', () => ({
 }));
 
 const validBody = {
+  user_id: '11111111-1111-4111-8111-111111111111',
   nom: 'Martin',
   prenom: 'Claire',
   poste: 'Dev',
   service: 'IT',
   contrat: 'CDI',
   date_embauche: '2025-01-01',
-  email: 'claire@corp.com',
-  password: 'secret12',
 };
 
 const mockAuthenticatedUser = (role) => {

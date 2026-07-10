@@ -16,13 +16,15 @@ const Collaborateurs = () => {
   const canEdit = isRh;
   const formRef = useRef(null);
   const [collaborateurs, setCollaborateurs] = useState([]);
+  const [utilisateursInscrits, setUtilisateursInscrits] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editingHasAccount, setEditingHasAccount] = useState(false);
-  const [compteExistant, setCompteExistant] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [form, setForm] = useState({
     nom: '',
     prenom: '',
@@ -34,10 +36,8 @@ const Collaborateurs = () => {
     status: 'Actif',
     role: 'Collaborateur',
     email: '',
-    password: '',
   });
   const ROLES = ['RH', 'Manager', 'Collaborateur'];
-
 
   const fetchCollaborateurs = useCallback(async () => {
     setLoading(true);
@@ -61,6 +61,23 @@ const Collaborateurs = () => {
     }
   }, []);
 
+  const fetchUtilisateursInscrits = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await apiFetch('/api/collaborateurs/utilisateurs-inscrits');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error || 'Erreur chargement des utilisateurs inscrits';
+        throw new Error(msg);
+      }
+      setUtilisateursInscrits(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     const timer = setTimeout(() => {
@@ -68,6 +85,14 @@ const Collaborateurs = () => {
     }, 0);
     return () => clearTimeout(timer);
   }, [user, fetchCollaborateurs]);
+
+  useEffect(() => {
+    if (!isRh || editingId) return;
+    const timer = setTimeout(() => {
+      fetchUtilisateursInscrits();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isRh, editingId, fetchUtilisateursInscrits]);
 
   const resetForm = () => {
     setForm({
@@ -81,11 +106,25 @@ const Collaborateurs = () => {
       status: 'Actif',
       role: 'Collaborateur',
       email: '',
-      password: '',
     });
+    setSelectedUserId('');
     setEditingId(null);
     setEditingHasAccount(false);
-    setCompteExistant(false);
+  };
+
+  const handleUserSelect = (userId) => {
+    setSelectedUserId(userId);
+    const selected = utilisateursInscrits.find((u) => u.id === userId);
+    if (selected) {
+      setForm((prev) => ({
+        ...prev,
+        nom: selected.nom || '',
+        prenom: selected.prenom || '',
+        email: selected.email || '',
+      }));
+    } else {
+      setForm((prev) => ({ ...prev, nom: '', prenom: '', email: '' }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -93,22 +132,16 @@ const Collaborateurs = () => {
 
     setSaving(true);
     setError('');
-    const { role, email, password, ...rest } = form;
+    const { role: formRole, email: _email, ...rest } = form;
     const payload = {
       ...rest,
       salaire: form.salaire === '' ? null : Number(form.salaire),
     };
 
     if (editingId && isRh && editingHasAccount) {
-      payload.role = role;
+      payload.role = formRole;
     } else if (!editingId) {
-      if (compteExistant) {
-        payload.compteExistant = true;
-        payload.email = email;
-      } else {
-        payload.email = email;
-        payload.password = password;
-      }
+      payload.user_id = selectedUserId;
     }
 
     try {
@@ -129,6 +162,7 @@ const Collaborateurs = () => {
       }
       resetForm();
       await fetchCollaborateurs();
+      if (isRh) await fetchUtilisateursInscrits();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -156,7 +190,7 @@ const Collaborateurs = () => {
       salaire: c.salaire ?? '',
       status: c.status || 'Actif',
       role: c.role || 'Collaborateur',
-
+      email: c.email || '',
     });
     requestAnimationFrame(() => {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -177,6 +211,7 @@ const Collaborateurs = () => {
       }
       if (editingId === id) resetForm();
       await fetchCollaborateurs();
+      if (isRh) await fetchUtilisateursInscrits();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -275,6 +310,46 @@ const Collaborateurs = () => {
           {editingId ? 'Modifier le collaborateur' : 'Nouveau collaborateur'}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {!editingId && (
+            <div className="md:col-span-3">
+              <label className="label-field" htmlFor="collab-user-select">
+                Utilisateur inscrit
+              </label>
+              {loadingUsers ? (
+                <p className="text-sm text-slate-500">Chargement des comptes Supabase…</p>
+              ) : utilisateursInscrits.length === 0 ? (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Aucun utilisateur inscrit disponible (tous ont déjà une fiche ou aucun compte dans Supabase Auth).
+                </p>
+              ) : (
+                <select
+                  id="collab-user-select"
+                  className="input-field"
+                  value={selectedUserId}
+                  onChange={(e) => handleUserSelect(e.target.value)}
+                  required
+                >
+                  <option value="">— Sélectionner un utilisateur —</option>
+                  {utilisateursInscrits.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.email}
+                      {u.full_name ? ` (${u.full_name})` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {!editingId && selectedUserId && (
+            <div className="md:col-span-3 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+              Compte sélectionné : <strong>{form.email}</strong>
+              {(form.prenom || form.nom) && (
+                <> — {form.prenom} {form.nom}</>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="label-field" htmlFor="collab-nom">
               Nom
@@ -285,6 +360,7 @@ const Collaborateurs = () => {
               value={form.nom}
               onChange={(e) => setForm({ ...form, nom: e.target.value })}
               required
+              readOnly={!editingId && !!selectedUserId}
             />
           </div>
           <div>
@@ -297,6 +373,7 @@ const Collaborateurs = () => {
               value={form.prenom}
               onChange={(e) => setForm({ ...form, prenom: e.target.value })}
               required
+              readOnly={!editingId && !!selectedUserId}
             />
           </div>
           <div>
@@ -323,69 +400,7 @@ const Collaborateurs = () => {
               required
             />
           </div>
-          {!editingId && (
-            <>
-              <div className="md:col-span-3">
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={compteExistant}
-                    onChange={(e) => setCompteExistant(e.target.checked)}
-                    className="rounded border-slate-300"
-                  />
-                  <span className="text-sm text-slate-700">Ce collaborateur a déjà un compte</span>
-                </label>
-              </div>
-              {compteExistant ? (
-                <div>
-                  <label className="label-field" htmlFor="collab-email-existing">
-                    Email du compte existant
-                  </label>
-                  <input
-                    id="collab-email-existing"
-                    type="email"
-                    className="input-field"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    required
-                    autoComplete="off"
-                  />
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="label-field" htmlFor="collab-email">
-                      Email (compte de connexion)
-                    </label>
-                    <input
-                      id="collab-email"
-                      type="email"
-                      className="input-field"
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      required
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div>
-                    <label className="label-field" htmlFor="collab-password">
-                      Mot de passe temporaire
-                    </label>
-                    <input
-                      id="collab-password"
-                      type="password"
-                      className="input-field"
-                      value={form.password}
-                      onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      required
-                      minLength={6}
-                      autoComplete="new-password"
-                    />
-                  </div>
-                </>
-              )}
-            </>
-          )}
+
           {editingId && editingHasAccount && (
             <div>
               <label className="label-field" htmlFor="collab-role">
@@ -466,12 +481,14 @@ const Collaborateurs = () => {
               required
             />
           </div>
-          
-          
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="submit" disabled={saving} className="btn-primary">
+          <button
+            type="submit"
+            disabled={saving || (!editingId && (loadingUsers || utilisateursInscrits.length === 0))}
+            className="btn-primary"
+          >
             {saving ? 'Enregistrement…' : editingId ? 'Enregistrer' : 'Ajouter'}
           </button>
           {editingId && (

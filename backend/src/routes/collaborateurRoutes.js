@@ -2,7 +2,14 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/authMiddleware');
-const { getAll, create, getById, update, remove } = require('../controllers/collaborateurController');
+const {
+  getAll,
+  getUtilisateursInscrits,
+  create,
+  getById,
+  update,
+  remove,
+} = require('../controllers/collaborateurController');
 
 const CONTRATS_VALIDES = ['CDI', 'CDD', 'Stage', 'Alternance'];
 const ROLES_VALIDES = ['RH', 'Manager', 'Collaborateur'];
@@ -15,12 +22,12 @@ const validate = (req, res, next) => {
   next();
 };
 
-const isLinkExistingAccount = (req) => {
-  const { compteExistant } = req.body;
-  return compteExistant === true || compteExistant === 'true';
-};
-
 const postCollaborateurRules = [
+  body('user_id')
+    .notEmpty()
+    .withMessage('Sélectionnez un utilisateur inscrit')
+    .isUUID()
+    .withMessage('Identifiant utilisateur invalide'),
   body('nom').trim().notEmpty().withMessage('Le nom est obligatoire'),
   body('prenom').trim().notEmpty().withMessage('Le prénom est obligatoire'),
   body('poste').trim().notEmpty().withMessage('Le poste est obligatoire'),
@@ -35,30 +42,6 @@ const postCollaborateurRules = [
     .withMessage('Le contrat est obligatoire')
     .isIn(CONTRATS_VALIDES)
     .withMessage(`Le contrat doit être parmi : ${CONTRATS_VALIDES.join(', ')}`),
-  body('compteExistant')
-    .optional()
-    .isBoolean()
-    .withMessage('compteExistant doit être un booléen'),
-  body('email')
-    .if(isLinkExistingAccount)
-    .trim()
-    .notEmpty()
-    .withMessage("L'email est obligatoire pour lier un compte existant")
-    .isEmail()
-    .withMessage('Email invalide'),
-  body('email')
-    .if((value, { req }) => !isLinkExistingAccount(req))
-    .trim()
-    .notEmpty()
-    .withMessage("L'email est obligatoire")
-    .isEmail()
-    .withMessage('Email invalide'),
-  body('password')
-    .if((value, { req }) => !isLinkExistingAccount(req))
-    .notEmpty()
-    .withMessage('Le mot de passe temporaire est obligatoire')
-    .isLength({ min: 6 })
-    .withMessage('Le mot de passe doit contenir au moins 6 caractères'),
 ];
 
 const putCollaborateurRules = [
@@ -82,6 +65,7 @@ const putCollaborateurRules = [
 
 router.use(authenticate);
 
+router.get('/utilisateurs-inscrits', authorize('RH'), getUtilisateursInscrits);
 router.get('/', authorize('RH', 'Manager'), getAll);
 router.get('/:id', authorize('RH', 'Manager'), getById);
 

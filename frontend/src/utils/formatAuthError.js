@@ -13,6 +13,8 @@ export function formatAuthError(message) {
     'User already registered': 'Un compte existe déjà avec cette adresse email.',
     'Aucun compte trouvé avec cet email':
       'Aucun compte trouvé avec cet email. Vérifiez l’adresse ou créez d’abord le compte utilisateur.',
+    'Utilisateur introuvable dans Supabase Auth':
+      'Utilisateur introuvable. Vérifiez qu’il est bien inscrit dans Supabase Auth.',
     'Signup requires a valid password':
       'Le mot de passe ne respecte pas les critères de sécurité.',
     'Password should be at least 6 characters':
