@@ -8,7 +8,7 @@ import LoadingState from '../components/ui/LoadingState';
 
 const TYPES = ['Congés payés', 'RTT', 'Maladie', 'Sans solde'];
 const STATUTS = ['', 'En attente', 'Approuvé', 'Refusé'];
-
+const [exportingFormat, setExportingFormat] = useState(null);
 const toDateInputValue = (value) => {
   if (!value) return '';
   if (typeof value === 'string') return value.slice(0, 10);
@@ -43,7 +43,6 @@ const Conges = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const [filterStatut, setFilterStatut] = useState('');
 
@@ -58,31 +57,37 @@ const Conges = () => {
   const canApprove = role === 'RH';
   const canRequestLeave = role === 'Collaborateur';
 
-  const downloadFile = async (path, filename) => {
-    setExporting(true);
-    setError('');
-    try {
-      const res = await apiFetch(path);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const msg = data?.error || 'Erreur export';
-        throw new Error(msg);
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setExporting(false);
+const downloadFile = async (path, filename, format) => {
+  setExportingFormat(format);
+  setError('');
+  try {
+    const res = await apiFetch(path);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = data?.error?.message || data?.error || 'Erreur export';
+      throw new Error(msg);
     }
-  };
+    const blob = await res.blob();
+    if (blob.size === 0) throw new Error('Le fichier exporté est vide');
+
+    const disposition = res.headers.get('Content-Disposition');
+    const match = disposition?.match(/filename="?([^"]+)"?/);
+    const finalFilename = match?.[1] || filename;
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = finalFilename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (e) {
+    setError(e.message);
+  } finally {
+    setExportingFormat(null);
+  }
+};
 
   const fetchConges = async () => {
     setLoading(true);
@@ -249,22 +254,22 @@ const Conges = () => {
           <>
             {canViewAll && (
               <>
-                <button
-                  type="button"
-                  disabled={exporting || saving}
-                  onClick={() => downloadFile('/api/exports/conges.xlsx', 'conges.xlsx')}
-                  className="btn-secondary"
-                >
-                  {exporting ? 'Export…' : 'Excel'}
-                </button>
-                <button
-                  type="button"
-                  disabled={exporting || saving}
-                  onClick={() => downloadFile('/api/exports/conges.pdf', 'conges.pdf')}
-                  className="btn-secondary"
-                >
-                  {exporting ? 'Export…' : 'PDF'}
-                </button>
+                            <button
+              type="button"
+              disabled={exportingFormat !== null || saving}
+              onClick={() => downloadFile('/api/exports/recrutement.xlsx', 'recrutement.xlsx', 'xlsx')}
+              className="btn-secondary"
+            >
+              {exportingFormat === 'xlsx' ? 'Export…' : 'Excel'}
+            </button>
+            <button
+              type="button"
+              disabled={exportingFormat !== null || saving}
+              onClick={() => downloadFile('/api/exports/recrutement.pdf', 'recrutement.pdf', 'pdf')}
+              className="btn-secondary"
+            >
+              {exportingFormat === 'pdf' ? 'Export…' : 'PDF'}
+            </button>
               </>
             )}
             <label className="label-field mb-0" htmlFor="filter-statut">
