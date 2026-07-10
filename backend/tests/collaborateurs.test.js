@@ -18,6 +18,7 @@ jest.mock('../src/middleware/authMiddleware', () => ({
 
 jest.mock('../src/db/supabaseClient', () => ({
   from: jest.fn(),
+  schema: jest.fn(),
   auth: {
     admin: {
       createUser: (...args) => mockCreateUser(...args),
@@ -26,9 +27,14 @@ jest.mock('../src/db/supabaseClient', () => ({
   },
 }));
 
+const mockSchemaFrom = jest.fn();
+
 beforeEach(() => {
   const supabase = require('../src/db/supabaseClient');
   supabase.from.mockReset();
+  supabase.schema.mockReset();
+  supabase.schema.mockReturnValue({ from: mockSchemaFrom });
+  mockSchemaFrom.mockReset();
   mockCreateUser.mockReset();
   mockDeleteUser.mockReset();
   mockDeleteUser.mockResolvedValue({ error: null });
@@ -187,6 +193,88 @@ describe('Collaborateurs — mutations (RH)', () => {
     expect(res.body.errors).toBeDefined();
   });
 
+  it('POST / avec compteExistant=true lie un compte existant (201)', async () => {
+    const supabase = require('../src/db/supabaseClient');
+
+    const authMaybeSingle = jest.fn().mockResolvedValueOnce({
+      data: { id: 'auth-user-existing' },
+      error: null,
+    });
+    const authEq = jest.fn().mockReturnValue({ maybeSingle: authMaybeSingle });
+    const authSelect = jest.fn().mockReturnValue({ eq: authEq });
+    mockSchemaFrom.mockReturnValueOnce({ select: authSelect });
+
+    const profileMaybeSingle = jest.fn().mockResolvedValueOnce({
+      data: { id: 'auth-user-existing' },
+      error: null,
+    });
+    const profileEq = jest.fn().mockReturnValue({ maybeSingle: profileMaybeSingle });
+    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ eq: profileEq }) });
+
+    const collabLinked = {
+      id: 'collab-linked',
+      nom: 'Martin',
+      prenom: 'Claire',
+      user_id: 'auth-user-existing',
+      email: 'claire@corp.com',
+    };
+    supabase.from.mockReturnValueOnce({
+      insert: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValueOnce({ data: collabLinked, error: null }),
+        }),
+      }),
+    });
+
+    const inFn = jest.fn().mockResolvedValueOnce({
+      data: [{ id: 'auth-user-existing', role: 'Collaborateur' }],
+      error: null,
+    });
+    supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ in: inFn }) });
+
+    const app = require('../src/app');
+    const res = await request(app)
+      .post('/api/collaborateurs')
+      .set('x-test-role', 'RH')
+      .send({
+        ...validBody,
+        compteExistant: true,
+        password: undefined,
+      });
+
+    expect(res.status).toBe(201);
+    expect(mockCreateUser).not.toHaveBeenCalled();
+    expect(res.body).toMatchObject({
+      user_id: 'auth-user-existing',
+      has_account: true,
+    });
+  });
+
+  it('POST / avec compteExistant=true et email inconnu retourne 404', async () => {
+    const authMaybeSingle = jest.fn().mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    const authEq = jest.fn().mockReturnValue({ maybeSingle: authMaybeSingle });
+    const authSelect = jest.fn().mockReturnValue({ eq: authEq });
+    mockSchemaFrom.mockReturnValueOnce({ select: authSelect });
+
+    const app = require('../src/app');
+    const res = await request(app)
+      .post('/api/collaborateurs')
+      .set('x-test-role', 'RH')
+      .send({
+        ...validBody,
+        compteExistant: true,
+        email: 'inconnu@corp.com',
+        password: undefined,
+      });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Aucun compte trouvé avec cet email');
+    expect(mockCreateUser).not.toHaveBeenCalled();
+  });
+
     it('PUT /:id met à jour un collaborateur (200)', async () => {
       const supabase = require('../src/db/supabaseClient');
 
@@ -255,6 +343,31 @@ describe('Collaborateurs — mutations (RH)', () => {
       .send({ nom: 'CHENAL' });
     expect(res.status).toBe(400);
     expect(res.body.errors).toBeDefined();
+  });
+
+  it('POST / retourne 403 pour un Manager', async () => {
+    const app = require('../src/app');
+    const res = await request(app)
+      .post('/api/collaborateurs')
+      .set('x-test-role', 'Manager')
+      .send(validBody);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Accès refusé');
+  });
+
+  it('POST / retourne 403 pour un Collaborateur (compteExistant ne doit pas exposer la 404)', async () => {
+    const app = require('../src/app');
+    const res = await request(app)
+      .post('/api/collaborateurs')
+      .set('x-test-role', 'Collaborateur')
+      .send({
+        ...validBody,
+        compteExistant: true,
+        email: 'cible@corp.com',
+        password: undefined,
+      });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Accès refusé');
   });
 
   describe('Collaborateurs — gestion des rôles (profiles)', () => {

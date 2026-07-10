@@ -4,6 +4,30 @@ const ROLES_VALIDES = ['RH', 'Manager', 'Collaborateur'];
 
 const buildFullname = (nom, prenom) => `${prenom} ${nom}`.trim();
 
+const isCompteExistant = (value) => value === true || value === 'true';
+
+/** Recherche un profil existant via auth.users.email → profiles.id */
+const findUserIdByEmail = async (email) => {
+  const { data: authUser, error: authError } = await supabase
+    .schema('auth')
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (authError || !authUser?.id) return null;
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', authUser.id)
+    .maybeSingle();
+
+  if (profileError || !profile?.id) return null;
+
+  return profile.id;
+};
+
 /** Ajoute role et has_account via collaborateurs.user_id → profiles.id */
 const enrichWithRoles = async (collaborateurs) => {
   if (!collaborateurs?.length) return collaborateurs;
@@ -42,6 +66,7 @@ const create = async (req, res) => {
   const {
     email,
     password,
+    compteExistant,
     nom,
     prenom,
     poste,
@@ -55,6 +80,8 @@ const create = async (req, res) => {
     ...rest
   } = req.body;
 
+  const linkExisting = isCompteExistant(compteExistant);
+
   const collabPayload = {
     nom,
     prenom,
@@ -64,10 +91,49 @@ const create = async (req, res) => {
     salaire,
     contrat,
     status: status ?? 'Actif',
-    email,
+    email: email ?? null,
     created_by: req.user.id,
     ...rest,
   };
+
+  if (linkExisting) {
+    const userId = await findUserIdByEmail(email);
+    if (!userId) {
+      return res.status(404).json({ error: 'Aucun compte trouvé avec cet email' });
+    }
+
+    collabPayload.user_id = userId;
+
+    const { data: collab, error: insertError } = await supabase
+      .from('collaborateurs')
+      .insert([collabPayload])
+      .select()
+      .single();
+
+    if (insertError) {
+      return res.status(400).json({ error: insertError.message ?? insertError });
+    }
+
+    const [enriched] = await enrichWithRoles([collab]);
+    return res.status(201).json(enriched);
+  }
+
+  if (!password) {
+    collabPayload.user_id = null;
+
+    const { data: collab, error: insertError } = await supabase
+      .from('collaborateurs')
+      .insert([collabPayload])
+      .select()
+      .single();
+
+    if (insertError) {
+      return res.status(400).json({ error: insertError.message ?? insertError });
+    }
+
+    const [enriched] = await enrichWithRoles([collab]);
+    return res.status(201).json(enriched);
+  }
 
   const { data: collab, error: insertError } = await supabase
     .from('collaborateurs')
@@ -202,4 +268,13 @@ const remove = async (req, res) => {
   res.status(204).send();
 };
 
-module.exports = { getAll, create, getById, update, remove, enrichWithRoles };
+module.exports = {
+  getAll,
+  create,
+  getById,
+  update,
+  remove,
+  enrichWithRoles,
+  findUserIdByEmail,
+  isCompteExistant,
+};

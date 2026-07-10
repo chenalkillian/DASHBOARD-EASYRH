@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { apiFetch } from '../utils/api';
+import { formatAuthError } from '../utils/formatAuthError';
 import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import LoadingState from '../components/ui/LoadingState';
@@ -21,6 +22,7 @@ const Collaborateurs = () => {
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editingHasAccount, setEditingHasAccount] = useState(false);
+  const [compteExistant, setCompteExistant] = useState(false);
   const [form, setForm] = useState({
     nom: '',
     prenom: '',
@@ -83,6 +85,7 @@ const Collaborateurs = () => {
     });
     setEditingId(null);
     setEditingHasAccount(false);
+    setCompteExistant(false);
   };
 
   const handleSubmit = async (e) => {
@@ -99,8 +102,13 @@ const Collaborateurs = () => {
     if (editingId && isRh && editingHasAccount) {
       payload.role = role;
     } else if (!editingId) {
-      payload.email = email;
-      payload.password = password;
+      if (compteExistant) {
+        payload.compteExistant = true;
+        payload.email = email;
+      } else {
+        payload.email = email;
+        payload.password = password;
+      }
     }
 
     try {
@@ -113,7 +121,10 @@ const Collaborateurs = () => {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data?.error?.message || data?.error || 'Erreur enregistrement';
+        const rawMsg = data?.error?.message || data?.error || 'Erreur enregistrement';
+        const msg = formatAuthError(rawMsg) === 'Une erreur inattendue est survenue. Veuillez réessayer.'
+          ? rawMsg
+          : formatAuthError(rawMsg);
         throw new Error(msg);
       }
       resetForm();
@@ -314,35 +325,65 @@ const Collaborateurs = () => {
           </div>
           {!editingId && (
             <>
-              <div>
-                <label className="label-field" htmlFor="collab-email">
-                  Email (compte de connexion)
+              <div className="md:col-span-3">
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={compteExistant}
+                    onChange={(e) => setCompteExistant(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  <span className="text-sm text-slate-700">Ce collaborateur a déjà un compte</span>
                 </label>
-                <input
-                  id="collab-email"
-                  type="email"
-                  className="input-field"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                  autoComplete="off"
-                />
               </div>
-              <div>
-                <label className="label-field" htmlFor="collab-password">
-                  Mot de passe temporaire
-                </label>
-                <input
-                  id="collab-password"
-                  type="password"
-                  className="input-field"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                />
-              </div>
+              {compteExistant ? (
+                <div>
+                  <label className="label-field" htmlFor="collab-email-existing">
+                    Email du compte existant
+                  </label>
+                  <input
+                    id="collab-email-existing"
+                    type="email"
+                    className="input-field"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    required
+                    autoComplete="off"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="label-field" htmlFor="collab-email">
+                      Email (compte de connexion)
+                    </label>
+                    <input
+                      id="collab-email"
+                      type="email"
+                      className="input-field"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      required
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <label className="label-field" htmlFor="collab-password">
+                      Mot de passe temporaire
+                    </label>
+                    <input
+                      id="collab-password"
+                      type="password"
+                      className="input-field"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </>
+              )}
             </>
           )}
           {editingId && editingHasAccount && (
