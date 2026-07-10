@@ -258,7 +258,7 @@ const downloadFile = async (path, filename, format) => {
                             <button
               type="button"
               disabled={exportingFormat !== null || saving}
-              onClick={() => downloadFile('/api/exports/recrutement.xlsx', 'recrutement.xlsx', 'xlsx')}
+              onClick={() => downloadFile('/api/exports/Conges.xlsx', 'conges.xlsx', 'xlsx')}
               className="btn-secondary"
             >
               {exportingFormat === 'xlsx' ? 'Export…' : 'Excel'}
@@ -266,7 +266,7 @@ const downloadFile = async (path, filename, format) => {
             <button
               type="button"
               disabled={exportingFormat !== null || saving}
-              onClick={() => downloadFile('/api/exports/recrutement.pdf', 'recrutement.pdf', 'pdf')}
+              onClick={() => downloadFile('/api/exports/Conges.pdf', 'conges.pdf', 'pdf')}
               className="btn-secondary"
             >
               {exportingFormat === 'pdf' ? 'Export…' : 'PDF'}
