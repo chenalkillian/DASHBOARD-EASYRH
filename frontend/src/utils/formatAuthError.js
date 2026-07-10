@@ -11,6 +11,8 @@ export function formatAuthError(message) {
     'Email not confirmed':
       'Veuillez confirmer votre adresse email avant de vous connecter.',
     'User already registered': 'Un compte existe déjà avec cette adresse email.',
+    'Aucun compte trouvé avec cet email':
+      'Aucun compte trouvé avec cet email. Vérifiez l’adresse ou créez d’abord le compte utilisateur.',
     'Signup requires a valid password':
       'Le mot de passe ne respecte pas les critères de sécurité.',
     'Password should be at least 6 characters':

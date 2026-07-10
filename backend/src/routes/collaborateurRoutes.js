@@ -15,6 +15,11 @@ const validate = (req, res, next) => {
   next();
 };
 
+const isLinkExistingAccount = (req) => {
+  const { compteExistant } = req.body;
+  return compteExistant === true || compteExistant === 'true';
+};
+
 const postCollaborateurRules = [
   body('nom').trim().notEmpty().withMessage('Le nom est obligatoire'),
   body('prenom').trim().notEmpty().withMessage('Le prénom est obligatoire'),
@@ -30,13 +35,26 @@ const postCollaborateurRules = [
     .withMessage('Le contrat est obligatoire')
     .isIn(CONTRATS_VALIDES)
     .withMessage(`Le contrat doit être parmi : ${CONTRATS_VALIDES.join(', ')}`),
+  body('compteExistant')
+    .optional()
+    .isBoolean()
+    .withMessage('compteExistant doit être un booléen'),
   body('email')
+    .if(isLinkExistingAccount)
+    .trim()
+    .notEmpty()
+    .withMessage("L'email est obligatoire pour lier un compte existant")
+    .isEmail()
+    .withMessage('Email invalide'),
+  body('email')
+    .if((value, { req }) => !isLinkExistingAccount(req))
     .trim()
     .notEmpty()
     .withMessage("L'email est obligatoire")
     .isEmail()
     .withMessage('Email invalide'),
   body('password')
+    .if((value, { req }) => !isLinkExistingAccount(req))
     .notEmpty()
     .withMessage('Le mot de passe temporaire est obligatoire')
     .isLength({ min: 6 })
