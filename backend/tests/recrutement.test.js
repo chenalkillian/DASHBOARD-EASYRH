@@ -1,4 +1,3 @@
-/** Tests recrutement : droits, liste, filtre statut, création candidat. */
 const request = require('supertest');
 
 jest.mock('../src/middleware/authMiddleware', () => ({
@@ -18,6 +17,10 @@ jest.mock('../src/db/supabaseClient', () => ({
   from: jest.fn(),
 }));
 
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
 describe('Recrutement - GET /api/recrutement', () => {
   it('refuse (403) pour un Collaborateur', async () => {
     const app = require('../src/app');
@@ -25,7 +28,13 @@ describe('Recrutement - GET /api/recrutement', () => {
     expect(res.status).toBe(403);
   });
 
-  it('renvoie la liste des candidats pour Manager (200)', async () => {
+  it('refuse (403) pour un Manager', async () => {
+    const app = require('../src/app');
+    const res = await request(app).get('/api/recrutement').set('x-test-role', 'Manager');
+    expect(res.status).toBe(403);
+  });
+
+  it('renvoie la liste des candidats pour RH (200)', async () => {
     const supabase = require('../src/db/supabaseClient');
     const rows = [{ id: 1, nom: 'Durand', statut: 'Entretien' }];
     const order = jest.fn().mockResolvedValueOnce({ data: rows, error: null });
@@ -33,7 +42,7 @@ describe('Recrutement - GET /api/recrutement', () => {
     supabase.from.mockReturnValueOnce({ select });
 
     const app = require('../src/app');
-    const res = await request(app).get('/api/recrutement').set('x-test-role', 'Manager');
+    const res = await request(app).get('/api/recrutement').set('x-test-role', 'RH');
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
@@ -63,6 +72,7 @@ describe('Recrutement - POST /api/recrutement', () => {
     const created = { id: 9, nom: 'Petit', poste: 'Designer' };
     const single = jest.fn().mockResolvedValueOnce({ data: created, error: null });
     const select = jest.fn().mockReturnValue({ single });
+
     supabase.from.mockReturnValueOnce({
       insert: jest.fn().mockReturnValue({ select }),
     });
