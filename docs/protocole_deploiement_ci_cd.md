@@ -57,8 +57,10 @@ Répertoire : `backend`
 
 ### 2.1. Branches
 
-- `main` : version stable destinée à la démo / production.
-- `feature/*` : développement de nouvelles fonctionnalités.
+- `main` / `master` : version stable destinée à la démo / production.
+- `feature/**` : développement de nouvelles fonctionnalités.
+- `fix/**` : correction de bugs.
+- `frontend/**` / `backend/**` : branches de travail spécifiques à une couche technique.
 
 ### 2.2. Séquence type de déploiement (dev → main)
 
@@ -78,7 +80,6 @@ Répertoire : `backend`
    - Supabase : déjà hébergé, les scripts SQL (`docs/supabase_*.sql`) documentent le schéma.
 
 ---
-
 ## 3. Intégration Continue (CI) – GitHub Actions
 
 Fichier : `.github/workflows/ci.yml`
@@ -87,8 +88,8 @@ Fichier : `.github/workflows/ci.yml`
 
 La CI se déclenche automatiquement :
 
-- sur `push` vers `main`, `master`, `feature/*`
-- sur `pull_request` vers `main`, `master`, `feature/*`
+- sur `push` vers `main`, `master`, `frontend/**`, `backend/**`, `feature/**`, `fix/**`
+- sur `pull_request` vers `main`, `master`
 
 ### 3.2. Jobs
 
@@ -103,49 +104,55 @@ La CI contient **deux jobs** parallèles : `backend` et `frontend`.
      - version Node 20
      - cache npm basé sur `backend/package-lock.json`
   3. `npm ci` : installation propre des dépendances backend
-  4. `npm test` : exécute Jest
+  4. `npm audit --audit-level=critical` : audit de sécurité des dépendances (échoue si vulnérabilité critique détectée)
+  5. `npm test` : exécute Jest
 
 **Critères de qualité** backend :
 
 - Tous les tests Jest doivent être **verts**.
-- En cas d’échec, la PR ne doit pas être mergée.
+- Aucune vulnérabilité de niveau **critique** ne doit être détectée par `npm audit`.
+- En cas d'échec, la PR ne doit pas être mergée.
 
 #### 3.2.2. Job Frontend
 
 - **Chemin de travail** : `frontend`
 - **Étapes** :
   1. `actions/checkout`
-  2. `actions/setup-node` (Node 20)
-  3. `npm install`
-  4. `npm run lint`
-  5. `npm run build`
+  2. `actions/setup-node` :
+     - version Node 20
+     - cache npm basé sur `frontend/package-lock.json`
+  3. `npm ci` : installation propre des dépendances frontend
+  4. `npm run lint` : ESLint
+  5. `npm test` : tests unitaires **Vitest** (ex. `formatAuthError`)
+  6. `npm run build` : build de production Vite
 
 **Critères de qualité** frontend :
 
-- `eslint` ne doit pas remonter d’erreur bloquante.
+- `eslint` ne doit pas remonter d'erreur bloquante.
+- Les tests Vitest doivent être **verts**.
 - Le build Vite (`npm run build`) doit réussir sans erreur.
-
 ---
 
 ## 4. Critères de qualité & performance (sujet / module)
 
 - **Qualité code** :
-  - usage de framework modernes (React, Express, Supabase)
+  - usage de frameworks modernes (React, Express, Supabase)
   - respect de patterns simples (routes/controllers/middleware côté backend, pages/components/hooks côté frontend)
-  - lint systématique du frontend
+  - lint systématique du frontend (ESLint)
+- **Sécurité des dépendances** :
+  - audit automatique `npm audit --audit-level=critical` sur le backend à chaque exécution de CI
+  - la CI bloque le merge si une vulnérabilité critique est détectée
 - **Prévention des régressions** :
-  - tests unitaires backend avec Jest (base sur `/api/health`, extensible sur auth/congés/dashboard)
-  - CI bloque le merge si les tests échouent
+  - tests unitaires backend avec Jest (10 fichiers, 26 scénarios : auth, collaborateurs, dashboard, congés, recrutement, onboarding, exports, health)
+  - tests unitaires frontend avec Vitest (ex. `formatAuthError`)
+  - CI bloque le merge si les tests échouent (backend ou frontend)
 - **Performance perçue** :
   - SPA côté frontend, chargement conditionnel des données
-  - API filtrées par rôle & requêtes raisonnables sur Supabase
-
----
+  - API filtrées par rôle & requêtes raisonnables sur Supabase---
 
 ## 5. Évolutions possibles
 
-- Ajouter des **tests supplémentaires** (auth, congés, exports) pour augmenter la couverture.
-- Étendre la CI pour :
-  - exécuter des tests frontend (React Testing Library),
-  - déployer automatiquement sur un environnement de **staging** après chaque merge sur `main`.
-
+- Augmenter la couverture des tests backend (actuellement ~60 % lignes / ~28 % branches) pour se rapprocher du mot « majorité » du référentiel.
+- Étendre les tests frontend Vitest à d'autres fonctions utilitaires et composants critiques (au-delà de `formatAuthError`).
+- Étendre la CI pour déployer automatiquement sur un environnement de **staging** après chaque merge sur `main`.
+- Basculer le cookie de session vers un mode **HttpOnly + Secure** posé côté backend.
