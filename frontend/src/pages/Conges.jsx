@@ -39,7 +39,8 @@ const statusBadgeClass = (statut) => {
 
 const Conges = () => {
   const { user } = useAuth();
-  
+  const navigate = useNavigate();
+
   const role = user?.role || 'Collaborateur';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,24 +48,56 @@ const Conges = () => {
   const [error, setError] = useState('');
   const [filterStatut, setFilterStatut] = useState('');
   const [exportingFormat, setExportingFormat] = useState(null);
-const navigate = useNavigate();
-
-useEffect(() => {
-  if (user?.hasAccount === false) {
-
-    navigate('/compte-en-attente', { replace: true });
-
-  }
-}, [user, navigate]);
-
-if (user?.hasAccount === false) return null;
-
   const [form, setForm] = useState({
     type: 'Congés payés',
     date_debut: '',
     date_fin: '',
     motif: '',
   });
+  
+ useEffect(() => {
+    if (user?.hasAccount === false) {
+      navigate('/compte-en-attente', { replace: true });
+    }
+  }, [user?.hasAccount, navigate]);
+  const fetchConges = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const qs = filterStatut ? `?statut=${encodeURIComponent(filterStatut)}` : '';
+      const res = await apiFetch(`/api/conges${qs}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error || 'Erreur chargement congés';
+        throw new Error(msg);
+      }
+      setItems(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    const timer = setTimeout(() => {
+      fetchConges();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [filterStatut]); 
+
+  const stats = useMemo(() => {
+    const base = { total: items.length, attente: 0, approuve: 0, refuse: 0 };
+    for (const it of items) {
+      if (it.statut === 'En attente') base.attente += 1;
+      if (it.statut === 'Approuvé') base.approuve += 1;
+      if (it.statut === 'Refusé') base.refuse += 1;
+    }
+    return base;
+  }, [items]);
+  if (user?.hasAccount === false) return null;
+
 
   const canViewAll = role === 'RH' || role === 'Manager';
   const canApprove = role === 'RH';
@@ -102,43 +135,6 @@ const downloadFile = async (path, filename, format) => {
   }
 };
 
-  const fetchConges = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const qs = filterStatut ? `?statut=${encodeURIComponent(filterStatut)}` : '';
-      const res = await apiFetch(`/api/conges${qs}`);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg = data?.error || 'Erreur chargement congés';
-        throw new Error(msg);
-      }
-      setItems(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!user) return;
-    const timer = setTimeout(() => {
-      fetchConges();
-    }, 0);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, filterStatut]);
-
-  const stats = useMemo(() => {
-    const base = { total: items.length, attente: 0, approuve: 0, refuse: 0 };
-    for (const it of items) {
-      if (it.statut === 'En attente') base.attente += 1;
-      if (it.statut === 'Approuvé') base.approuve += 1;
-      if (it.statut === 'Refusé') base.refuse += 1;
-    }
-    return base;
-  }, [items]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

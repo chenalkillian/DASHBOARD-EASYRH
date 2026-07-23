@@ -1,7 +1,7 @@
 import { Clock3 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 const CompteEnAttente = () => {
-const { user, logout } = useAuth();
+const { logout } = useAuth();
 
 
   return (

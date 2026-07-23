@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, Mail, Lock, User } from 'lucide-react';
 import { formatAuthError } from '../utils/formatAuthError';
-import { supabase } from '../services/supabase';
 const Register = () => {
   const navigate = useNavigate();
   const { register,logout } = useAuth();
