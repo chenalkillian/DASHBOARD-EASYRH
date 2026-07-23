@@ -22,13 +22,14 @@ const Onboarding = () => {
   const [error, setError] = useState('');
   const [newTaskTitre, setNewTaskTitre] = useState('');
 
+  const canAccess = user?.role === 'RH' || user?.role === 'Manager';
 
   const selectedCollaborateur = useMemo(
     () => collaborateurs.find((c) => c.id === selectedId) || null,
     [collaborateurs, selectedId],
   );
 
-  const fetchTasks = async (collabId) => {
+  const fetchTasks = useCallback(async (collabId) => {
     if (!collabId) return;
     setLoadingTasks(true);
     setError('');
@@ -45,7 +46,7 @@ const Onboarding = () => {
     } finally {
       setLoadingTasks(false);
     }
-  };
+  }, []);
 
   const fetchCollaborateurs = useCallback(async () => {
     setLoadingCollab(true);
@@ -69,24 +70,24 @@ const Onboarding = () => {
   }, [selectedId]);
 
   useEffect(() => {
-    if (!user) return;
-    const canAccess = user.role === 'RH' || user.role === 'Manager';
-    if (!canAccess) return;
+    if (!user || !canAccess) return;
 
     const timer = setTimeout(() => {
       fetchCollaborateurs();
     }, 0);
+
     return () => clearTimeout(timer);
-  }, [user, fetchCollaborateurs]); 
+  }, [user, canAccess, fetchCollaborateurs]);
+
   useEffect(() => {
-    if (selectedId) {
-      const timer = setTimeout(() => {
-        fetchTasks(selectedId);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [selectedId]);
+    if (!selectedId) return undefined;
+
+    const timer = setTimeout(() => {
+      fetchTasks(selectedId);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [selectedId, fetchTasks]);
 
 
 
