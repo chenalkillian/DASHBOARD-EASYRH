@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
-const { authenticate, authorize } = require('../middleware/authMiddleware');
+const { authenticate, authorize,requireAccount } = require('../middleware/authMiddleware');
 const {
   getAll,
   getUtilisateursInscrits,
@@ -63,7 +63,7 @@ const putCollaborateurRules = [
     .withMessage(`Le rôle doit être parmi : ${ROLES_VALIDES.join(', ')}`),
 ];
 
-router.use(authenticate);
+router.use(authenticate,requireAccount);
 
 router.get('/utilisateurs-inscrits', authorize('RH'), getUtilisateursInscrits);
 router.get('/', authorize('RH', 'Manager'), getAll);

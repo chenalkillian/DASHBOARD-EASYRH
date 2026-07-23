@@ -10,7 +10,7 @@ import ResetPassword from './pages/ResetPassword';
 import Recrutement from './pages/Recrutement';
 import Onboarding from './pages/Onboarding';
 import Conges from './pages/Conges';
-
+import CompteEnAttente from './pages/CompteEnAttente';
 function App() {
   const { user, loading } = useAuth();
 
@@ -43,6 +43,7 @@ return (
         path="/conges"
         element={user ? <Layout><Conges /></Layout> : <Navigate to="/login" />}
       />
+      <Route path="/compte-en-attente" element={user ? <CompteEnAttente /> : <Navigate to="/login" />} />
     </Routes>
   </Router>
 );

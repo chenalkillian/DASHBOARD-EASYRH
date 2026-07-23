@@ -76,8 +76,7 @@ const Onboarding = () => {
       fetchCollaborateurs();
     }, 0);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, canAccess]);
+  }, [user, canAccess,fetchCollaborateurs]);
 
   useEffect(() => {
     if (selectedId) {
@@ -87,7 +86,6 @@ const Onboarding = () => {
       return () => clearTimeout(timer);
     }
     return undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
   const handleCreateFromTemplate = async () => {

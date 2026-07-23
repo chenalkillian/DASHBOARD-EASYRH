@@ -12,6 +12,18 @@ jest.mock('../src/middleware/authMiddleware', () => ({
     }
     next();
   },
+    requireAccount: (req, res, next) => {
+    if (req.user?.role === 'RH') return next();
+
+    if (!req.user?.hasAccount) {
+      return res.status(403).json({
+        error: 'compte_en_attente',
+        message: 'Votre compte est en attente de validation par le service RH.',
+      });
+    }
+
+    next();
+  },
 }));
 
 jest.mock('../src/db/supabaseClient', () => ({
