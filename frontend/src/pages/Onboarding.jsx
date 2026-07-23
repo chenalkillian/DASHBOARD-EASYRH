@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { apiFetch } from '../utils/api';
 import PageHeader from '../components/ui/PageHeader';
@@ -9,9 +9,9 @@ const DEFAULT_TEMPLATE = [
   { titre: 'Préparer le poste de travail', categorie: 'Logistique' },
   { titre: 'Planifier le point de bienvenue', categorie: 'Manager' },
 ];
+
 const Onboarding = () => {
   const { user } = useAuth();
-  const role = user?.role || 'Collaborateur';
 
   const [collaborateurs, setCollaborateurs] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -22,15 +22,33 @@ const Onboarding = () => {
   const [error, setError] = useState('');
   const [newTaskTitre, setNewTaskTitre] = useState('');
 
-  const canAccess = role === 'RH' || role === 'Manager';
+  const canAccess = user?.role === 'RH' || user?.role === 'Manager';
 
   const selectedCollaborateur = useMemo(
     () => collaborateurs.find((c) => c.id === selectedId) || null,
     [collaborateurs, selectedId],
   );
 
+  const fetchTasks = useCallback(async (collabId) => {
+    if (!collabId) return;
+    setLoadingTasks(true);
+    setError('');
+    try {
+      const res = await apiFetch(`/api/onboarding/${collabId}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error || 'Erreur chargement checklist';
+        throw new Error(msg);
+      }
+      setTasks(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingTasks(false);
+    }
+  }, []);
 
-  const fetchCollaborateurs = async () => {
+  const fetchCollaborateurs = useCallback(async () => {
     setLoadingCollab(true);
     setError('');
     try {
@@ -49,51 +67,36 @@ const Onboarding = () => {
     } finally {
       setLoadingCollab(false);
     }
-  };
-
-  const fetchTasks = async (collabId) => {
-    if (!collabId) return;
-    setLoadingTasks(true);
-    setError('');
-    try {
-      const res = await apiFetch(`/api/onboarding/${collabId}`);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg = data?.error || 'Erreur chargement checklist';
-        throw new Error(msg);
-      }
-      setTasks(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoadingTasks(false);
-    }
-  };
+  }, [selectedId]);
 
   useEffect(() => {
     if (!user || !canAccess) return;
+
     const timer = setTimeout(() => {
       fetchCollaborateurs();
     }, 0);
+
     return () => clearTimeout(timer);
-  }, [user, canAccess]);
+  }, [user, canAccess, fetchCollaborateurs]);
+
 
   useEffect(() => {
-    if (selectedId) {
-      const timer = setTimeout(() => {
-        fetchTasks(selectedId);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [selectedId]);
+    if (!selectedId) return undefined;
+
+    const timer = setTimeout(() => {
+      fetchTasks(selectedId);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [selectedId, fetchTasks]);
+
+
 
   const handleCreateFromTemplate = async () => {
     if (!selectedId) return;
     setSaving(true);
     setError('');
     try {
-      // créer toutes les tâches template si la checklist est vide
       if (tasks.length > 0) return;
 
       for (let i = 0; i < DEFAULT_TEMPLATE.length; i += 1) {
