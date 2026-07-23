@@ -5,6 +5,7 @@ import { apiFetch } from '../utils/api';
 import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import LoadingState from '../components/ui/LoadingState';
+import { useNavigate } from 'react-router-dom';
 
 const TYPES = ['Congés payés', 'RTT', 'Maladie', 'Sans solde'];
 const STATUTS = ['', 'En attente', 'Approuvé', 'Refusé'];
@@ -38,6 +39,7 @@ const statusBadgeClass = (statut) => {
 
 const Conges = () => {
   const { user } = useAuth();
+  
   const role = user?.role || 'Collaborateur';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,17 @@ const Conges = () => {
   const [error, setError] = useState('');
   const [filterStatut, setFilterStatut] = useState('');
   const [exportingFormat, setExportingFormat] = useState(null);
+const navigate = useNavigate();
 
+useEffect(() => {
+  if (user?.hasAccount === false) {
+
+    navigate('/compte-en-attente', { replace: true });
+
+  }
+}, [user, navigate]);
+
+if (user?.hasAccount === false) return null;
 
   const [form, setForm] = useState({
     type: 'Congés payés',
@@ -441,7 +453,7 @@ const downloadFile = async (path, filename, format) => {
                     <th scope="col">Fin</th>
                     <th scope="col">Statut</th>
                     <th scope="col">Traité le</th>
-                    <th scope="col">Actions</th>
+                   {canViewAll && <th scope="col">Actions</th> }
                   </tr>
                 </thead>
                 <tbody>

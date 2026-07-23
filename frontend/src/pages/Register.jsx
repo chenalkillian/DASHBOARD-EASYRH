@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, Mail, Lock, User } from 'lucide-react';
 import { formatAuthError } from '../utils/formatAuthError';
-
+import { supabase } from '../services/supabase';
 const Register = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register,logout } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -15,7 +15,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
-
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -33,9 +33,10 @@ const Register = () => {
     if (result.success) {
       if (result.message) {
         setInfo(result.message);
-      } else {
-        navigate('/');
-      }
+    } else {
+  logout();
+  setShowSuccessModal(true);
+}
     } else {
       setError(formatAuthError(result.error ?? ''));
     }
@@ -43,12 +44,29 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
+      
       <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Créer un compte</h1>
           <p className="text-gray-500">Inscription Dashboard RH</p>
         </div>
-
+{showSuccessModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="dialog" aria-modal="true">
+    <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full space-y-4 text-center">
+      <h2 className="text-xl font-bold text-gray-900">Compte créé avec succès</h2>
+      <p className="text-gray-600">
+        Votre compte a bien été créé. Il est désormais en attente de validation par le service RH.
+      </p>
+      <button
+        type="button"
+        onClick={() => navigate('/login', { replace: true })}
+        className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-xl font-semibold hover:bg-blue-700 transition-all"
+      >
+        OK
+      </button>
+    </div>
+  </div>
+)}
         {error && (
           <div
             role="alert"

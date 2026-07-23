@@ -27,43 +27,81 @@ const validBody = {
   date_embauche: '2025-01-01',
 };
 
-const mockAuthenticatedUser = (role) => {
+const mockAuthenticatedUser = (role, hasAccount = true) => {
   const supabase = require('../src/db/supabaseClient');
-  supabase.auth.getUser.mockResolvedValueOnce({
+
+  supabase.auth.getUser.mockResolvedValue({
     data: { user: { id: 'test-user-id', email: 'test@corp.com' } },
     error: null,
   });
-  const maybeSingle = jest.fn().mockResolvedValueOnce({ data: { role }, error: null });
-  const eq = jest.fn().mockReturnValue({ maybeSingle });
-  supabase.from.mockReturnValueOnce({ select: jest.fn().mockReturnValue({ eq }) });
+
+  supabase.from.mockImplementation((table) => {
+    if (table === 'profiles') {
+      return {
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            maybeSingle: jest.fn().mockResolvedValue({
+              data: { role },
+              error: null,
+            }),
+          }),
+        }),
+      };
+    }
+
+    if (table === 'collaborateurs') {
+      return {
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({
+                data: hasAccount ? { id: 'collab-1' } : null,
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      };
+    }
+
+    return {
+      select: jest.fn(),
+      insert: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    };
+  });
 };
 
 describe('Collaborateurs - protection auth réelle (POST /)', () => {
   let app;
-
-  beforeAll(() => {
-    app = require('../src/app');
-  });
+  let supabase;
 
   beforeEach(() => {
-    const supabase = require('../src/db/supabaseClient');
+    jest.resetModules();
+
+    supabase = require('../src/db/supabaseClient');
     supabase.from.mockReset();
     supabase.auth.getUser.mockReset();
+
+    app = require('../src/app');
   });
 
   it('retourne 401 sans token Bearer', async () => {
     const res = await request(app).post('/api/collaborateurs').send(validBody);
-
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('Token manquant');
   });
 
   it('retourne 403 pour un Collaborateur authentifié', async () => {
     mockAuthenticatedUser('Collaborateur');
+
     const res = await request(app)
       .post('/api/collaborateurs')
       .set('Authorization', 'Bearer fake-token')
       .send(validBody);
+
+    console.log(res.status, res.body);
 
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('Accès refusé');

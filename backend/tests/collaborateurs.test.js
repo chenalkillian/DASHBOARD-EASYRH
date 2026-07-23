@@ -5,7 +5,23 @@ const mockGetUserById = jest.fn();
 
 jest.mock('../src/middleware/authMiddleware', () => ({
   authenticate: (req, _res, next) => {
-    req.user = { id: 'u-test', role: req.header('x-test-role') || 'Collaborateur' };
+    req.user = {
+      id: 'u-test',
+      role: req.header('x-test-role') || 'Collaborateur',
+      hasAccount: req.header('x-test-has-account') !== 'false',
+    };
+    next();
+  },
+  requireAccount: (req, res, next) => {
+    if (req.user?.role === 'RH') return next();
+
+    if (!req.user?.hasAccount) {
+      return res.status(403).json({
+        error: 'compte_en_attente',
+        message: 'Votre compte est en attente de validation par le service RH.',
+      });
+    }
+
     next();
   },
   authorize: (...allowed) => (req, res, next) => {
