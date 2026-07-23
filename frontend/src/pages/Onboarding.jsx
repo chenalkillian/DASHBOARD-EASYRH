@@ -79,6 +79,7 @@ const Onboarding = () => {
     return () => clearTimeout(timer);
   }, [user, canAccess, fetchCollaborateurs]);
 
+
   useEffect(() => {
     if (!selectedId) return undefined;
 
