@@ -1,91 +1,145 @@
 # Historique des versions — EasyDashboard RH
 
-Synthèse des évolutions du projet (fonctionnalités, correctifs, doc).
-
-Ce n’est **pas** un export automatique de `git log` : Git garde le détail brut ; ici je résume ce qui compte pour suivre le produit (tags / merges comme repères temporels si besoin).
-
-## [1.4.4] — 2026-08-09 (Version finale)
-
-### Ajouts / ajustements
-- **Couverture fonctionnelle** : les 6 modules (authentification, collaborateurs, dashboard KPI, recrutement, onboarding, congés) sont livrés à 100 %.
-- **Clôture Issue #21** : dernière anomalie documentée (erreur trompeuse à la modification d'un collaborateur sans compte lié), fermée avec commit de correction associé.
-- **Doc** : nettoyage final du code (suppression logs de debug), revue des messages d'erreur UX.
-
-## [1.4.3] — 2026-07
-
-### Ajouts
-- Finalisation de la documentation utilisateur et du cahier de recettes.
-- Vérification croisée de la conformité OWASP Top 10 sur l'ensemble des endpoints API.
-
-## [1.4.2] — 2026-07
-
-### Ajouts / ajustements
-- **Performance** : temps de réponse API stabilisé sous 500 ms (p95).
-- **Tests** : couverture backend consolidée à ~63 % (Jest), cible ≥50 % dépassée.
-
-## [1.4.1] — 2026-07
-
-### Ajouts
-- **Accessibilité** : conformité RGAA 4.1 niveau AA validée — Lighthouse 100/100, WAVE 9.9/10.
-
-## [1.4.0] — 2026-07
-
-### Ajouts
-- **Sécurité RBAC** : gestion fine des rôles RH / Manager / Collaborateur finalisée sur l'ensemble des modules.
-- Module **Congés** centralisé (soumission, validation, historique) livré intégralement.
-- Module **Onboarding** : génération automatique de checklist depuis template finalisée.
-
-## [1.3.1] — 2026-06
-
-### Corrections
-- **BUG-02** — Validation des entrées API (durcissement des contrôles côté backend).
-- **BUG-03** — UX des messages d'erreur (clarification des retours utilisateur).
-- Renforcement des politiques RLS suite à audit de sécurité complémentaire.
-
-## [1.3.0] — 2026-06
-
-
-
-### Corrections
-- **Arbitrage sécurité critique** : détection et correction de l'absence de politiques RLS sur la table `profiles` (non-conformité OWASP A01 — Broken Access Control). Politiques RLS définies et activées en 2h, 0 € de coût, 0 vulnérabilité critique restante.
-- **BUG-01** — Gestion des tokens JWT (correction du renouvellement de session).
+Synthèse des évolutions du projet (fonctionnalités, correctifs, doc). Historique aligné sur le **Journal des versions officiel (Annexe 2, Dossier Bloc 4 — C4.3.2)**, source de référence pour toutes les dates et contenus de version.
 
 ---
 
-## [1.2.1] — 2026-05
-
-### Ajouts / ajustements
-
-- **Tests API** : recrutement, onboarding, congés (liste, création, erreurs), exports RH, mutations collaborateurs ; couverture lignes ~**60 %** (Jest).
-- **UI / accessibilité** : `scope="col"` sur les gros tableaux, scroll horizontal propre sur Collaborateurs, `min-w` sur Congés / Recrutement.
-- **Doc** : README + `securite_et_accessibilite` alignés avec l’état du code.
-
-## [1.2.0] — 2026-05
+## [1.4.4] — Juillet 2026 — `feature/waiting-RH-authorization`
 
 ### Ajouts
-- Navigation **mobile** (menu accessible sous le breakpoint `md`) pour un usage correct sur petits écrans.
-- **Tests** : extension des tests d’API backend (collaborateurs, inscription) ; tests unitaires frontend sur la fonction utilitaire `formatAuthError` (messages d’erreur auth).
-- Fichier **`CHANGELOG.md`** et alignement de la documentation projet sur l’état réel du dépôt (CI, recettes, manuels).
+- Contrôle d'accès pour les utilisateurs authentifiés sans fiche collaborateur valide.
+- Création de la page **Compte en attente** et du middleware `requireAccount` (blocage des modules métier hors rôle RH tant que la fiche n'est pas validée, retour 403 `error: compte_en_attente`).
+- Sécurisation renforcée du module Congés, ajustements du module Onboarding.
+- Mise à jour des tests backend/frontend.
 
-### Corrections
-- Documentation : `README_PROJET` recalé sur l’état réel du repo (CI, tests, livrables `docs/`).
+### Conformité
+- Mise en conformité renforcée avec OWASP A04 (Insecure Design) — suppression du risque qu'un compte fraîchement créé accède à des données RH sans validation préalable.
 
 ---
 
-## [1.1.0] — 2026-04
+## [1.4.3] — Juillet 2026 — `feature/link-user-collaborateur`
 
 ### Ajouts
-- Intégration continue **GitHub Actions** (lint + build frontend, tests + audit backend).
-- Documentation **sécurité / accessibilité** (OWASP, RGAA / OPQUAST) et **protocole CI/CD**.
-- **Cahier de recettes**, **plan de correction des bogues**, **manuels** (déploiement, utilisation, mise à jour).
-
-### Corrections
-- Correctifs API (ex. décision congés, politiques RLS) documentés dans `docs/plan_correction_bugs.md`.
+- Ajout de la liaison entre un compte utilisateur (`auth.users`) et une fiche collaborateur existante, permettant d'associer un accès applicatif à un collaborateur déjà enregistré en base.
 
 ---
 
-## [1.0.0] — 2026-03 (MVP)
+## [1.4.2] — Juin 2026 — `fix/bug-06`
+
+### Corrections
+- **BUG-06** — Erreur trompeuse à la modification d'un collaborateur sans compte lié (rôle ignoré si pas de `user_id`) — **corrigé**.
+- Responsive Login/Onboarding.
+
+---
+
+## [1.4.1] — Juin 2026 — `feature/role-based-ui-restrictions`
+
+### Ajouts
+- Restrictions UI par rôle : Manager en lecture seule, sans accès au module Recrutement, vue Congés globale.
+
+---
+
+## [1.4.0] — Juin 2026 — `feature/role-management`
+
+### Ajouts
+- Gestion des rôles RBAC : différenciation RH / Manager / Collaborateur côté backend.
+
+---
+
+## [1.3.1] — Juin 2026 — `feature/ux-fixes-v1.3`
+
+### Corrections
+- Fixation de la version Vitest (3.2.4), commit du `package-lock.json`, stabilisation du pipeline CI.
+
+---
+
+## [1.3.0] — Juin 2026 — `feature/ux-fixes-v1.3`
+
+### Ajouts
+- UX/UI globale : congés demandeur, bouton "modifier" sur le module Recrutement, loading states, empty states, responsive.
+
+---
+
+## [1.2.1] — Juin 2026 — `fix/bug-02-validation`
+
+### Corrections
+- **BUG-02** — Validation des entrées backend : intégration d'`express-validator` sur toutes les routes POST/PUT (collaborateurs, candidats, congés) — middleware `validate`, erreurs HTTP 400 — **corrigé**.
+
+---
+
+## [1.2.0] — Mai 2026 — `fix/bug-01-04-03`
+
+### Corrections
+- **BUG-01** — Intercepteur 401 `apiFetch` (rafraîchissement de session, redirection login sur token expiré) — **corrigé**.
+- **BUG-03** — Messages d'erreur Supabase traduits en français, complété sur `Register.jsx`.
+- **BUG-04** — Création automatique du profil Collaborateur manquant dans `authMiddleware` — **corrigé**.
+
+---
+
+## [1.1.3] — Mai 2026 — `feature/no-setting`
+
+### Corrections
+- Suppression de la page Paramètres.
+
+---
+
+## [1.1.2] — Mai 2026 — `feature/responsive-tests-doc`
+
+### Ajouts
+- Corrections responsive, documentation et tests.
+
+---
+
+## [1.1.1] — Avril 2026 — `feature/bug-03-auth-errors-fr`
+
+### Corrections
+- **BUG-03** — Création de la fonction utilitaire `formatAuthError` (traduction des codes d'erreur Supabase en français) — appliquée sur `Login.jsx` — partiellement corrigé.
+
+---
+
+## [1.1.0] — Avril 2026 — `feature/ci-global`
+
+### Ajouts
+- Mise en place du pipeline CI/CD global GitHub Actions (jobs backend + frontend).
+
+---
+
+## [1.0.0] — Mars 2026 — `master`
 
 ### Fonctionnalités principales
-- Authentification Supabase + rôles (RH / Manager / Collaborateur).
-- Modules : collaborateurs, dashboard KPI, recrutement, onboarding, congés, exports PDF/Excel.
+- Version complète F1–F6 : authentification Supabase + rôles (RH / Manager / Collaborateur), collaborateurs, dashboard KPI, recrutement, onboarding, congés.
+- CI/CD opérationnel.
+
+---
+
+## [0.4.0] — Février 2026 — `frontend/1.2`
+
+### Ajouts
+- Écrans frontend d'authentification, intégration Supabase Auth.
+
+---
+
+## [0.3.0] — Février 2026 — `backend/1.2`
+
+### Ajouts
+- Middleware d'authentification JWT + RBAC.
+
+---
+
+## [0.2.0] — Février 2026 — `frontend/1.1`, `backend/1.1`
+
+### Ajouts
+- Setup du client Supabase, configuration des variables d'environnement.
+
+---
+
+## [0.1.0] — Février 2026 — `frontend/1.0`, `backend/1.0`
+
+### Ajouts
+- Initialisation du projet, structure `frontend/` / `backend/` / `docs/`.
+
+---
+
+## Anomalie en cours (non corrigée)
+
+**BUG-05** — Absence de tests React Testing Library sur les composants frontend (Login, Register, Dashboard, Collaborateurs) — **planifié pour v1.5.0**, axe de progression identifié.
